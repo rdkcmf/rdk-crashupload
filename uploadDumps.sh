@@ -624,9 +624,24 @@ coreUpload()
         dirnum="0$dirnum"
     fi
 
-    logMessage "Upload string: scp -i $POTOMAC_IDENTITY_FILE ./$coreFile $POTOMAC_USER@$host:$remotePath/$dirnum/"
-    nice -n 19 scp -i $POTOMAC_IDENTITY_FILE "./$coreFile" "$POTOMAC_USER"@$host:$remotePath/$dirnum/ 2>&1 | logStdout
-
+    if [ "$DEVICE_TYPE" = "broadband" ];then
+        if [ "$MULTI_CORE" = "yes" ];then
+             output=`get_core_value`
+             if [ "$output" = "ARM" ];then
+                   logMessage "Upload string: curl -v --interface $ARM_INTERFACE --upload-file ./$coreFile https://vbn.crashportal.ccp.xcal.tv:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                   curl -v --interface $ARM_INTERFACE --upload-file ./$coreFile "https://vbn.crashportal.ccp.xcal.tv:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+             else
+                   logMessage "Upload string: curl -v --upload-file ./$coreFile https://vbn.crashportal.ccp.xcal.tv:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                   curl -v --upload-file ./$coreFile "https://vbn.crashportal.ccp.xcal.tv:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+             fi
+        else
+            logMessage "Upload string: curl -v --upload-file ./$coreFile https://vbn.crashportal.ccp.xcal.tv:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+            curl -v --upload-file ./$coreFile "https://vbn.crashportal.ccp.xcal.tv:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+        fi
+    else
+        logMessage "Upload string: scp -i $POTOMAC_IDENTITY_FILE ./$coreFile $POTOMAC_USER@$host:$remotePath/$dirnum/"
+        nice -n 19 scp -i $POTOMAC_IDENTITY_FILE "./$coreFile" "$POTOMAC_USER"@$host:$remotePath/$dirnum/ 2>&1 | logStdout
+    fi
     local result=$?
     if [ $result -eq 0 ]; then
         logMessage "Success uploading file: $coreFile to $host:$remotePath/$dirnum/."
@@ -648,7 +663,10 @@ VERSION_FILE="version.txt"
 VERSION_FILE_PATH="/${VERSION_FILE}"
 boxType=$BOX_TYPE
 if [ "$DEVICE_TYPE" = "broadband" ];then
-    modNum=`cat /fss/gw/version.txt | grep ^imagename= | cut -d "=" -f 2 | cut -d "_" -f 1`
+    modNum=`cat /version.txt | grep imagename | cut -d "=" -f 2 | cut -d "_" -f1`
+    if [ ! "$modNum" ];then
+        modNum=`cat /fss/gw/version.txt | grep ^imagename: | cut -d ":" -f 2 | cut -d "_" -f 1`
+    fi
 else
     modNum="$(grep -i 'imagename:' ${VERSION_FILE_PATH} | head -n1 | cut -d ':' -f2 | cut -d '_' -f1)"
 fi
