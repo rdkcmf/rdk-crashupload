@@ -131,11 +131,13 @@ network_commn_status()
           ;;
         "ATOM")
             if [ ! -f /tmp/if_network_status ];then
-                 while [ "$IF_STATE" != "started" ] 
+                 while [ "$status" = "" ] 
                  do
                      output=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_WAN_MAC`
                      status=`echo $output| grep "Execution succeed"`
-                     echo $status > /tmp/if_network_success
+                     if [ "$status" ];then
+                          echo $status > /tmp/if_network_status
+                     fi
                  done
             else
                  echo "Network is Ready now..!"
