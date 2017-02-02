@@ -663,7 +663,8 @@ VERSION_FILE="version.txt"
 VERSION_FILE_PATH="/${VERSION_FILE}"
 boxType=$BOX_TYPE
 if [ "$DEVICE_TYPE" = "broadband" ];then
-    modNum=`cat /version.txt | grep imagename | cut -d "=" -f 2 | cut -d "_" -f1`
+    modNumValue=`cat /version.txt | grep imagename | cut -d "=" -f 2 | cut -d "_" -f1`
+    modNum=`echo $modNumValue | cut -d ":" -f2`
     if [ ! "$modNum" ];then
         modNum=`cat /fss/gw/version.txt | grep ^imagename: | cut -d ":" -f 2 | cut -d "_" -f 1`
     fi
