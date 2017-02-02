@@ -628,15 +628,15 @@ coreUpload()
         if [ "$MULTI_CORE" = "yes" ];then
              output=`get_core_value`
              if [ "$output" = "ARM" ];then
-                   logMessage "Upload string: curl -v --interface $ARM_INTERFACE --upload-file ./$coreFile https://vbn.crashportal.ccp.xcal.tv:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
-                   curl -v --interface $ARM_INTERFACE --upload-file ./$coreFile "https://vbn.crashportal.ccp.xcal.tv:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                   logMessage "Upload string: curl -v --interface $ARM_INTERFACE --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                   curl -v --interface $ARM_INTERFACE --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
              else
-                   logMessage "Upload string: curl -v --upload-file ./$coreFile https://vbn.crashportal.ccp.xcal.tv:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
-                   curl -v --upload-file ./$coreFile "https://vbn.crashportal.ccp.xcal.tv:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                   logMessage "Upload string: curl -v --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                   curl -v --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
              fi
         else
-            logMessage "Upload string: curl -v --upload-file ./$coreFile https://vbn.crashportal.ccp.xcal.tv:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
-            curl -v --upload-file ./$coreFile "https://vbn.crashportal.ccp.xcal.tv:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+            logMessage "Upload string: curl -v --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+            curl -v --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
         fi
     else
         logMessage "Upload string: scp -i $POTOMAC_IDENTITY_FILE ./$coreFile $POTOMAC_USER@$host:$remotePath/$dirnum/"
