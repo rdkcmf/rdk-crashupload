@@ -207,57 +207,16 @@ uploadToS3()
             local remotePath=`sanitize "$3"`
             logMessage "Safe params: $validDate -- $auth -- $remotePath"
 
-            if [ ! -f /tmp/crashUploadTLSVersion ]; then
-                logMessage "Attempting TLS1.2 connection to Amazon S3"
-                echo "--tlsv1.2" > /tmp/crashUploadTLSVersion
-                nice -n 19 curl --tlsv1.2 --cacert "$CERTFILE" -X PUT -T "$WORKING_DIR/$file" -H "Host: $S3BUCKET.s3.amazonaws.com" -H "Date: $validDate" -H "Content-Type: application/x-compressed-tar" -H "Authorization: AWS $auth" "https://$S3BUCKET.s3.amazonaws.com/${remotePath}" |logStdout
-                ec=$?
-
-                #Check for https tls1.2 failure
-                case $ec in
-                    35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
-                    logMessage "Switching to TLS1.1 as TLS1.2 failed to connect to Amazon S3 with curl error code $ec"
-                    echo "--tlsv1.1" > /tmp/crashUploadTLSVersion
-                    nice -n 19 curl --tlsv1.1 --cacert "$CERTFILE" -X PUT -T "$WORKING_DIR/$file" -H "Host: $S3BUCKET.s3.amazonaws.com" -H "Date: $validDate" -H "Content-Type: application/x-compressed-tar" -H "Authorization: AWS $auth" "https://$S3BUCKET.s3.amazonaws.com/${remotePath}" |logStdout
-                    ec=$?
-                    ;;
-                esac
-
-                #Check for https tls1.1 failure
-                case $ec in
-                    35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
-                    logMessage "Switching to insecure mode as TLS1.1 failed to connect to Amazon S3 with curl error code $ec"
-                    echo "--insecure --tlsv1.1" > /tmp/crashUploadTLSVersion
-                    nice -n 19 curl --insecure --tlsv1.1 --cacert "$CERTFILE" -X PUT -T "$WORKING_DIR/$file" -H "Host: $S3BUCKET.s3.amazonaws.com" -H "Date: $validDate" -H "Content-Type: application/x-compressed-tar" -H "Authorization: AWS $auth" "https://$S3BUCKET.s3.amazonaws.com/${remotePath}" |logStdout
-                    ec=$?
-                    ;;
-                esac
-
-                #Check for https tls1.1 insecure mode failure
-                case $ec in
-                    35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
-                    logMessage "Switching to HTTP as HTTPS insecure failed to connect to Amazon S3 with curl error code $ec"
-                    echo "" > /tmp/crashUploadTLSVersion
-                    nice -n 19 curl --cacert "$CERTFILE" -X PUT -T "$WORKING_DIR/$file" -H "Host: $S3BUCKET.s3.amazonaws.com" -H "Date: $validDate" -H "Content-Type: application/x-compressed-tar" -H "Authorization: AWS $auth" "http://$S3BUCKET.s3.amazonaws.com/${remotePath}" |logStdout
-                    ec=$?
-                    ;;
-                esac
-            else
-                TLSVersion=`cat /tmp/crashUploadTLSVersion`
-                if [ "$TLSVersion" == "" ]; then
-                    logMessage "Attempting HTTP connection to Amazon S3"
-                    nice -n 19 curl --cacert "$CERTFILE" -X PUT -T "$WORKING_DIR/$file" -H "Host: $S3BUCKET.s3.amazonaws.com" -H "Date: $validDate" -H "Content-Type: application/x-compressed-tar" -H "Authorization: AWS $auth" "http://$S3BUCKET.s3.amazonaws.com/${remotePath}" |logStdout
-                else      
-                    logMessage "Attempting $TLSVersion connection to Amazon S3"
-                    nice -n 19 curl $TLSVersion --cacert "$CERTFILE" -X PUT -T "$WORKING_DIR/$file" -H "Host: $S3BUCKET.s3.amazonaws.com" -H "Date: $validDate" -H "Content-Type: application/x-compressed-tar" -H "Authorization: AWS $auth" "https://$S3BUCKET.s3.amazonaws.com/${remotePath}" |logStdout
-                fi    
-                ec=$?
-            fi
+            logMessage "Attempting TLS1.2 connection to Amazon S3"
+            nice -n 19 curl --tlsv1.2 --cacert "$CERTFILE" -X PUT -T "$WORKING_DIR/$file" -H "Host: $S3BUCKET.s3.amazonaws.com" -H "Date: $validDate" -H "Content-Type: application/x-compressed-tar" -H "Authorization: AWS $auth" "https://$S3BUCKET.s3.amazonaws.com/${remotePath}" |logStdout
+            ec=$?
         fi
     fi
 
     if [ $ec -ne 0 ]; then
         logMessage "Curl finished unsuccessfully! Error code: $ec"
+    else
+        logMessage "S3 Log Upload is successful with TLS1.2"
     fi
 
     return $ec
