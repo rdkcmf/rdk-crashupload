@@ -206,9 +206,16 @@ uploadToS3()
             local auth=`sanitize "$2"`
             local remotePath=`sanitize "$3"`
             logMessage "Safe params: $validDate -- $auth -- $remotePath"
+            tlsMessage=""
 
-            logMessage "Attempting TLS1.2 connection to Amazon S3"
-            nice -n 19 curl --tlsv1.2 --cacert "$CERTFILE" -X PUT -T "$WORKING_DIR/$file" -H "Host: $S3BUCKET.s3.amazonaws.com" -H "Date: $validDate" -H "Content-Type: application/x-compressed-tar" -H "Authorization: AWS $auth" "https://$S3BUCKET.s3.amazonaws.com/${remotePath}" |logStdout
+            if [ -f /etc/os-release ]; then
+                tlsMessage="with TLS1.2"
+                logMessage "Attempting TLS1.2 connection to Amazon S3"
+                nice -n 19 curl --tlsv1.2 --cacert "$CERTFILE" -X PUT -T "$WORKING_DIR/$file" -H "Host: $S3BUCKET.s3.amazonaws.com" -H "Date: $validDate" -H "Content-Type: application/x-compressed-tar" -H "Authorization: AWS $auth" "https://$S3BUCKET.s3.amazonaws.com/${remotePath}" |logStdout
+            else
+                nice -n 19 curl --cacert "$CERTFILE" -X PUT -T "$WORKING_DIR/$file" -H "Host: $S3BUCKET.s3.amazonaws.com" -H "Date: $validDate" -H "Content-Type: application/x-compressed-tar" -H "Authorization: AWS $auth" "https://$S3BUCKET.s3.amazonaws.com/${remotePath}" |logStdout
+
+            fi
             ec=$?
         fi
     fi
@@ -216,7 +223,7 @@ uploadToS3()
     if [ $ec -ne 0 ]; then
         logMessage "Curl finished unsuccessfully! Error code: $ec"
     else
-        logMessage "S3 Log Upload is successful with TLS1.2"
+        logMessage "S3 Log Upload is successful $tlsMessage"
     fi
 
     return $ec
