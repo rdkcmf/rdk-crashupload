@@ -31,6 +31,18 @@ set -o pipefail
 . $RDK_PATH/utils.sh
 . $RDK_PATH/commonUtils.sh
 
+
+# Override Options for testing non PROD builds
+if [ "$DEVICE_TYPE" = "broadband" ];then
+	if [ -f /nvram/coredump.properties -a $BUILD_TYPE != "prod" ];then
+		. /nvram/coredump.properties
+	fi
+else 
+	if [ -f /opt/coredump.properties -a $BUILD_TYPE != "prod" ];then
+     		. /opt/coredump.properties
+	fi
+fi
+
 # export PATH and LD_LIBRARY_PATH for curl
 export PATH=$PATH:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib:/usr/lib/
@@ -38,17 +50,17 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib:/usr/lib/
 CORE_LOG="$LOG_PATH/core_log.txt"
 CERTFILE="/etc/ssl/certs/qt-cacert.pem"
 S3BUCKET="ccp-stbcrashes"
+HTTP_CODE="/tmp/httpcode"
+S3_FILENAME=""
 
 # Yocto conditionals
 if [ -f /etc/os-release ]; then
     export HOME=/home/root/
     CORE_PATH="/var/lib/systemd/coredump/"
     RECEIVER="/home/root/Receiver"
-    POTOMAC_IDENTITY_FILE="$HOME/.ssh/id_dropbear"
 else
     export HOME=/
     RECEIVER="/mnt/nfs/env/Receiver"
-    POTOMAC_IDENTITY_FILE="/.ssh/id_dropbear"
 fi
 
 
@@ -113,8 +125,6 @@ remove_lock()
         rmdir "${path}.lock.d" || logMessage "Error deleting ${path}.lock.d"
     fi
 }
-
-POTOMAC_USER=ccpstbscp
 
 # Assign the input arguments
 # CRASHTS was previously taken from first argument to the script, but we decided to just generate it here.
@@ -473,29 +483,27 @@ sanitize()
 uploadToS3()
 {
     local file=$(basename $1)
-
-    logMessage "uploadToS3 '$(readlink $1)'"
-
+    #logMessage "uploadToS3 '$(readlink $1)'"
+    logMessage "uploadToS3 $1"
     local app=${file%%.signal*}
-    app=${app##*_}
-
     #get signed parameters from server
     local OIFS=$IFS
     IFS=$'\n'
-
-    ##sets positional variables $1, $2... Please don't quote this additionally unless you really know what you are doing
-    set -- `curl -s --cacert "$CERTFILE" --data-urlencode "source=$file"\
-                                         --data-urlencode "dumptype=core"\
-                                         --data-urlencode "mod=$modNum"\
-                                         --data-urlencode "app=$app" \
-                                         --data-urlencode "buildtype=$BUILD_TYPE"\
-                                         "https://crashportal.ccp.xcal.tv:8090/cgi-bin/sign.py"`
-
+    logMessage "[$0]: S3 Amazon Signing URL: $S3_AMAZON_SIGNING_URL"   
+    CurrentVersion=`grep imagename /$VERSION_FILE | cut -d':' -f2` 
+    status=`curl -s --cacert "/etc/ssl/certs/qt-cacert.pem" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
+                                             --data-urlencode "firmwareVersion=$CurrentVersion"\
+                                             --data-urlencode "env=$BUILD_TYPE"\
+                                             --data-urlencode "model=$modNum"\
+                                             --data-urlencode "type=$DUMP_NAME" \
+                                             "$S3_AMAZON_SIGNING_URL"`
     local ec=$?
     IFS=$OIFS
+    logMessage "[$0]: Execution Status: $ec, HTTP SIGN URL Response: $status"
     if [ $ec -eq 0 ]; then
-        if [ -z "$1" -o -z "$2" -o -z "$3" ]; then
+        if [ -z "$1" ]; then
             ec=1
+            logMessage "[$0]: S3 Amazon Signing Request Failed..!"
         else
             #make params shell-safe
             local validDate=`sanitize "$1"`
@@ -503,51 +511,62 @@ uploadToS3()
             local remotePath=`sanitize "$3"`
             logMessage "Safe params: $validDate -- $auth -- $remotePath"
             tlsMessage=""
-            if [ -f /etc/os-release ]; then
+            if [ -f /etc/os-release ]; then 
                 tlsMessage="with TLS1.2"
                 logMessage "Attempting TLS1.2 connection to Amazon S3"
-                nice -n 19 curl --tlsv1.2 --cacert "$CERTFILE" -X PUT -T "$WORKING_DIR/$file" -H "Host: $S3BUCKET.s3.amazonaws.com" -H "Date: $validDate" -H "Content-Type: application/x-compressed-tar" -H "Authorization: AWS $auth" "https://$S3BUCKET.s3.amazonaws.com/${remotePath}" |logStdout
+                   CURL_CMD="curl -v -fgL --tlsv1.2 --cacert /etc/ssl/certs/qt-cacert.pem -T \"$file\" -w \"%{http_code}\" \"`cat /tmp/signed_url`\""
             else
-                nice -n 19 curl --cacert "$CERTFILE" -X PUT -T "$WORKING_DIR/$file" -H "Host: $S3BUCKET.s3.amazonaws.com" -H "Date: $validDate" -H "Content-Type: application/x-compressed-tar" -H "Authorization: AWS $auth" "https://$S3BUCKET.s3.amazonaws.com/${remotePath}" |logStdout
-
+                   CURL_CMD="curl -v -fgL --cacert /etc/ssl/certs/qt-cacert.pem -T \"$file\" -w \"%{http_code}\" \"`cat /tmp/signed_url`\""
             fi
+            logMessage "URL_CMD: $CURL_CMD"                         
+            result= eval $CURL_CMD > $HTTP_CODE                                  
             ec=$?
+            logMessage "Execution Status:$ec HTTP Response code: `cat $HTTP_CODE` "
          fi
      fi
-
      if [ $ec -ne 0 ]; then
          logMessage "Curl finished unsuccessfully! Error code: $ec"
      else
-        logMessage "S3 Log Upload is successful $tlsMessage"
+        logMessage "S3 Coreupload Upload is successful $tlsMessage"
      fi
-
     return $ec
 }
 
-coreUpload()
+failOverUploadToCrashPortal()
 {
     local coreFile=$1
-    local host=$2
-    local remotePath=$3
+    local host=$PORTAL_URL
+    local remotePath=$CRASH_PORTAL_PATH
+    local dirnum=''
 
-    local dirnum=$(( $RANDOM % 100))
+    if [ "$DEVICE_TYPE" = "broadband" ];then
+        dirnum=`awk -v min=5 -v max=10 'BEGIN{srand(); print int(min+rand()*(max-min+1))}'`
+    else
+        dirnum=$(( $RANDOM % 100 ))
+    fi
     if [ "$dirnum" -ge "0" -a "$dirnum" -le "9" ]; then
         dirnum="0$dirnum"
     fi
 
-    logMessage "Upload string: scp -i $POTOMAC_IDENTITY_FILE  ./$coreFile $POTOMAC_USER@$host:$remotePath/$dirnum/"
-    nice -n 19 scp -i $POTOMAC_IDENTITY_FILE "./$coreFile" "$POTOMAC_USER"@$host:$remotePath/$dirnum/ 2>&1 | logStdout
-
+    if [ "$DEVICE_TYPE" = "broadband" ] && [ "$MULTI_CORE" = "yes" ];then
+             output=`get_core_value`
+             if [ "$output" = "ARM" ];then
+                   logMessage "Upload string: curl -v --interface $ARM_INTERFACE --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                   curl -v --interface $ARM_INTERFACE --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+             else
+                   logMessage "Upload string: curl -v --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                   curl -v --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+             fi
+    else
+            logMessage "Upload string: curl -v --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+            curl -v --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+    fi
     local result=$?
     if [ $result -eq 0 ]; then
         logMessage "Success uploading file: $coreFile to $host:$remotePath/$dirnum/."
     else
         logMessage "Uploading to the Server failed..."
     fi
-
-    # It's temporary; just for field tests on VBN builds
-    [[ "$BUILD_TYPE" = "vbn" && "$DUMP_FLAG" = "1" ]] && uploadToS3 "$f"
-
     return $result
 }
 
@@ -824,22 +843,52 @@ processDumps()
                     removePendingDumps
                     exit
                 fi
-            fi
-            f=`echo ${f##*/}`
-            # if it is not Receiver, and build type is prod
-            if [[ "$DUMP_FLAG" = "1" && "$BUILD_TYPE" = "prod" && -n "${f##*Receiver*}" ]]; then
-                # upload to S3
-                uploadToS3 "$f"
             else
-                logMessage "trying to upload tarball $f"
-                # This is for SCP/DBCLIENT to find /.ssh/ dir
-                coreUpload $f $PORTAL_URL $CRASH_PORTAL_PATH
+                logMessage "Coredump File `echo $f`"
             fi
-            if [ $? -ne 0 ]; then
-                exit 1
+            S3_FILENAME=`echo ${f##*/}`
+if [ "$DEVICE_TYPE" != "broadband" ];then
+            count=1
+            # upload to S3 amazon first
+            logMessage "[$0]: $count: $DUMP_NAME S3 Upload "
+            uploadToS3 "`echo $S3_FILENAME`" 
+            status=$?
+            while [ $count -le 3 ]
+            do
+                # S3 amazon fail over recovery
+                count=`expr $count + 1`
+                if [ $status -ne 0 ];then
+                     logMessage "[$0]: Execution Status: $status, S3 Amazon Upload Failed"
+                     logMessage "[$0]: $count: (Retry), $DUMP_NAME S3 Upload"
+                     sleep 2
+                     uploadToS3 "`echo $S3_FILENAME`"
+                     status=$?
+                else
+                     logMessage "[$0]: uploadToS3 SUCESS: status: $status"
+                     break
+                fi
+            done
+            if [ $status -ne 0 ];then
+                  logMessage "[$0]: Fail Over Mechanism: CURL $DUMP_NAME to crashportal"
+                  failOverUploadToCrashPortal "$S3_FILENAME"
+                  if [ $? -ne 0 ]; then
+                        logMessage "[$0]: Fail Over Mechanism: Failed..!"
+                        exit 1
+                  fi
+            else
+                  echo "[$0]: Execution Status: $status, S3 Amazon Upload Success"
             fi
-            logMessage "Removing file $f"
-            rm -f $f
+else
+        logMessage "[$0]:CURL $DUMP_NAME to crashportal"
+                  failOverUploadToCrashPortal "$S3_FILENAME"
+                  if [ $? -ne 0 ]; then
+                        logMessage "[$0]: Fail Over Mechanism: Failed..!"
+                        exit 1
+                  fi
+fi
+
+            logMessage "Removing file $S3_FILENAME"
+            rm -f $S3_FILENAME
             logUploadTimestamp
         fi
     done
