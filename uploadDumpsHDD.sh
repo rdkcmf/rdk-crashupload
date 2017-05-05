@@ -187,7 +187,7 @@ deleteAllButTheMostRecentFile()
 
 cleanup()
 {
-    if [ -z "$WORKING_DIR" ] ; then
+    if [ -z "$WORKING_DIR" ] || [ -z "$(ls -A $WORKING_DIR 2> /dev/null)" ] ; then
         logMessage "WORKING_DIR is empty!!!"
         return
     fi
@@ -227,7 +227,9 @@ cleanup()
             touch "$ON_STARTUP_DUMPS_CLEANED_UP"
        fi
     else
-       rm -rf /opt/.upload_on_startup
+       if [ $DUMP_FLAG -eq 1 ];then
+            rm -rf /opt/.upload_on_startup
+       fi
     fi
 }
 
