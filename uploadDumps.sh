@@ -774,7 +774,7 @@ processDumps()
 {
     find -name "$DUMPS_EXTN" -type f | while read f;
     do
-        local f1=$(echo "$f" | sed -e 's/ //g')
+        local f1=$(echo "$f" | sed -e 's/[][ :+,=]//g')
         if [ -z "$f1" ]; then
             rm -f "$f"
             continue
