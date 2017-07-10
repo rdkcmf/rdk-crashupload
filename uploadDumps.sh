@@ -812,6 +812,7 @@ processDumps()
             mv $f $dumpName
             cp "/"$VERSION_FILE .
 
+            logMessage "Size of the file: `ls -l $dumpName`"
             if [ "$DUMP_FLAG" == "1" ] ; then
                 nice -n 19 tar -zcvf $tgzFile $dumpName $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $cefLogFile $VERSION_FILE $CORE_LOG 2>&1 | logStdout
                 if [ $? -eq 0 ]; then
@@ -858,6 +859,7 @@ processDumps()
                        echo "$0 New Model, need to add support..!"
                 fi
             fi
+            logMessage "Size of the compressed file: `ls -l $tgzFile`"
 
             rm $dumpName
             if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ];then

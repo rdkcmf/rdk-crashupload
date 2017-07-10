@@ -735,6 +735,7 @@ processDumps()
             mv $f $dumpName
             cp "/"$VERSION_FILE .
 
+            logMessage "Size of the file: `ls -l $dumpName`"
             if [ "$DUMP_FLAG" == "1" ] ; then
                 nice -n 19 tar -zcvf $tgzFile $dumpName $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $VERSION_FILE $CORE_LOG 2>&1 | logStdout
                 if [ $? -eq 0 ]; then
@@ -767,7 +768,7 @@ processDumps()
                    logMessage "Compression Failed ."
                 fi
             fi
-
+            logMessage "Size of the compressed file: `ls -l $tgzFile`"
             rm $dumpName
 
             if [ ! -z "$STBLOG_FILE" -a -f "$STBLOG_FILE" ]; then
