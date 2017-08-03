@@ -85,7 +85,9 @@ getErouterMacAddress()
 rebootFunc()
 {
     #sync
-    reboot
+    process=`cat /proc/$PPID/cmdline`
+    echo "RebootReason: Rebooting the box.. Trigger from $process" >> /opt/logs/rebootInfo.log
+    /rebootNow.sh -s crashUpload_"`basename $0`"
 }
 
 # Return system uptime in seconds
