@@ -484,7 +484,7 @@ uploadToS3()
     IFS=$'\n'
 
     ##sets positional variables $1, $2... Please don't quote this additionally unless you really know what you are doing
-    set -- `curl -s --cacert "$CERTFILE" --data-urlencode "source=$file"\
+    set -- `curl -s --tlsv1.2 --cacert "$CERTFILE" --data-urlencode "source=$file"\
                                          --data-urlencode "dumptype=core"\
                                          --data-urlencode "mod=$modNum"\
                                          --data-urlencode "app=$app" \
@@ -502,15 +502,8 @@ uploadToS3()
             local auth=`sanitize "$2"`
             local remotePath=`sanitize "$3"`
             logMessage "Safe params: $validDate -- $auth -- $remotePath"
-            tlsMessage=""
-            if [ -f /etc/os-release ]; then
-                tlsMessage="with TLS1.2"
-                logMessage "Attempting TLS1.2 connection to Amazon S3"
-                nice -n 19 curl --tlsv1.2 --cacert "$CERTFILE" -X PUT -T "$WORKING_DIR/$file" -H "Host: $S3BUCKET.s3.amazonaws.com" -H "Date: $validDate" -H "Content-Type: application/x-compressed-tar" -H "Authorization: AWS $auth" "https://$S3BUCKET.s3.amazonaws.com/${remotePath}" |logStdout
-            else
-                nice -n 19 curl --cacert "$CERTFILE" -X PUT -T "$WORKING_DIR/$file" -H "Host: $S3BUCKET.s3.amazonaws.com" -H "Date: $validDate" -H "Content-Type: application/x-compressed-tar" -H "Authorization: AWS $auth" "https://$S3BUCKET.s3.amazonaws.com/${remotePath}" |logStdout
-
-            fi
+            logMessage "Attempting TLS1.2 connection to Amazon S3"
+            nice -n 19 curl --tlsv1.2 --cacert "$CERTFILE" -X PUT -T "$WORKING_DIR/$file" -H "Host: $S3BUCKET.s3.amazonaws.com" -H "Date: $validDate" -H "Content-Type: application/x-compressed-tar" -H "Authorization: AWS $auth" "https://$S3BUCKET.s3.amazonaws.com/${remotePath}" |logStdout
             ec=$?
          fi
      fi
@@ -518,7 +511,7 @@ uploadToS3()
      if [ $ec -ne 0 ]; then
          logMessage "Curl finished unsuccessfully! Error code: $ec"
      else
-        logMessage "S3 Log Upload is successful $tlsMessage"
+        logMessage "S3 Log Upload is successful with TLS1.2"
      fi
 
     return $ec
