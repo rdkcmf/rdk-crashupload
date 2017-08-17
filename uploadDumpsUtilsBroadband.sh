@@ -89,7 +89,8 @@ get_mac_address()
     output=`get_core_value`
     case "$output" in
          "ATOM")
-           mac=`ifconfig $ATOM_INTERFACE | grep HWaddr | cut -d " " -f12` ;;
+           mac=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_CM_MAC  | grep type: | awk '{print $5}'|tr '[:lower:]' '[:upper:]' | sed 's/://g'` ;;
+           # mac=`ifconfig $ATOM_INTERFACE | grep HWaddr | cut -d " " -f12` ;;
          "ARM" )
            mac=`ifconfig $ARM_INTERFACE | grep HWaddr | cut -d " " -f7 | sed 's/://g'` ;;
           *)
