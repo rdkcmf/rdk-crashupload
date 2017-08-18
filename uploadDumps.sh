@@ -55,8 +55,10 @@ set -o pipefail
 CERTFILE="/etc/ssl/certs/qt-cacert.pem"
 S3BUCKET="ccp-stbcrashes"
 # Yocto conditionals
+TLS=""
 if [ -f /etc/os-release ]; then
     CORE_PATH="/var/lib/systemd/coredump/"
+    TLS="--tlsv1.2"
 fi
 
 if [ "$DEVICE_TYPE" = "broadband" ];then
@@ -188,7 +190,7 @@ uploadToS3()
     IFS=$'\n'
 
     ##sets positional variables $1, $2... Please don't quote this additionally unless you really know what you are doing
-    set -- `curl -s --cacert "$CERTFILE" --data-urlencode "source=$file"\
+    set -- `curl -s $TLS --cacert "$CERTFILE" --data-urlencode "source=$file"\
                                          --data-urlencode "dumptype=core"\
                                          --data-urlencode "mod=$modNum"\
                                          --data-urlencode "app=$app" \
@@ -596,15 +598,15 @@ coreUpload()
         if [ "$MULTI_CORE" = "yes" ];then
              output=`get_core_value`
              if [ "$output" = "ARM" ];then
-                   logMessage "Upload string: curl -v --interface $ARM_INTERFACE --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
-                   curl -v --interface $ARM_INTERFACE --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                   logMessage "Upload string: curl -v $TLS --interface $ARM_INTERFACE --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                   curl -v $TLS --interface $ARM_INTERFACE --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
              else
-                   logMessage "Upload string: curl -v --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
-                   curl -v --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                   logMessage "Upload string: curl -v $TLS --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                   curl -v $TLS --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
              fi
         else
-            logMessage "Upload string: curl -v --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
-            curl -v --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+            logMessage "Upload string: curl -v $TLS --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+            curl -v $TLS --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
         fi
     else
         logMessage "Upload string: scp -i $POTOMAC_IDENTITY_FILE ./$coreFile $POTOMAC_USER@$host:$remotePath/$dirnum/"
