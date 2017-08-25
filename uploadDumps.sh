@@ -56,9 +56,13 @@ CERTFILE="/etc/ssl/certs/qt-cacert.pem"
 S3BUCKET="ccp-stbcrashes"
 # Yocto conditionals
 TLS=""
+# force tls1.2 for yocto video devices and all braodband devices
+if [ -f /etc/os-release ] || [ "$DEVICE_TYPE" = "broadband" ];then
+    TLS="--tlsv1.2"
+fi
+
 if [ -f /etc/os-release ]; then
     CORE_PATH="/var/lib/systemd/coredump/"
-    TLS="--tlsv1.2"
 fi
 
 if [ "$DEVICE_TYPE" = "broadband" ];then
