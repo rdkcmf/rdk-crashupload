@@ -544,7 +544,7 @@ uploadToS3()
     IFS=$'\n'
     logMessage "[$0]: S3 Amazon Signing URL: $S3_AMAZON_SIGNING_URL"   
     CurrentVersion=`grep imagename /$VERSION_FILE | cut -d':' -f2` 
-    status=`curl -s --cacert "/etc/ssl/certs/qt-cacert.pem" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
+    status=`curl -s $TLS --cacert "/etc/ssl/certs/qt-cacert.pem" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\

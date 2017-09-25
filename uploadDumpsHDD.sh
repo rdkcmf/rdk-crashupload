@@ -54,6 +54,12 @@ HTTP_CODE="/tmp/httpcode"
 S3_FILENAME=""
 
 # Yocto conditionals
+TLS=""
+# force tls1.2 for yocto video devices and all braodband devices
+if [ -f /etc/os-release ] || [ "$DEVICE_TYPE" = "broadband" ];then
+    TLS="--tlsv1.2"
+fi
+
 if [ -f /etc/os-release ]; then
     export HOME=/home/root/
     CORE_PATH="/var/lib/systemd/coredump/"
@@ -491,7 +497,7 @@ uploadToS3()
     IFS=$'\n'
     logMessage "[$0]: S3 Amazon Signing URL: $S3_AMAZON_SIGNING_URL"   
     CurrentVersion=`grep imagename /$VERSION_FILE | cut -d':' -f2` 
-    status=`curl -s --cacert "/etc/ssl/certs/qt-cacert.pem" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
+    status=`curl -s $TLS --cacert "/etc/ssl/certs/qt-cacert.pem" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
