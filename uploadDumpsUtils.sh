@@ -20,6 +20,8 @@
 
 CMINTERFACE="wan0"
 WANINTERFACE="erouter0"
+DEVICEINFO="/usr/sbin/deviceinfo.sh"
+
 # Set the name of the log file using SHA1
 setLogFile()
 {
@@ -41,7 +43,12 @@ Timestamp()
 # Get the MAC address of the machine
 getMacAddressOnly()
 {
-     mac=`ifconfig $WANINTERFACE | grep HWaddr | cut -d " " -f7 | sed 's/://g'`
+     ifconfig $WANINTERFACE > /dev/null
+     if [ $? -eq 0 ]; then
+         mac=`ifconfig $WANINTERFACE | grep HWaddr | cut -d " " -f7 | sed 's/://g'`
+     elif [ -e $DEVICEINFO ] ; then
+         mac=`$DEVICEINFO -emac| sed 's/://g'`
+     fi
      echo $mac
 }
 
