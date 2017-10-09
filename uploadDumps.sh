@@ -74,11 +74,7 @@ HTTP_CODE="/tmp/httpcode"
 S3_FILENAME=""
 
 # Yocto conditionals
-TLS=""
-# force tls1.2 for yocto video devices and all braodband devices
-if [ -f /etc/os-release ] || [ "$DEVICE_TYPE" = "broadband" ];then
-    TLS="--tlsv1.2"
-fi
+TLS="--tlsv1.2"
 
 if [ -f /etc/os-release ]; then
     CORE_PATH="/var/lib/systemd/coredump/"
@@ -563,14 +559,9 @@ uploadToS3()
             local auth=`sanitize "$2"`
             local remotePath=`sanitize "$3"`
             logMessage "Safe params: $validDate -- $auth -- $remotePath"
-            tlsMessage=""
-            if [ -f /etc/os-release ]; then 
-                tlsMessage="with TLS1.2"
-                logMessage "Attempting TLS1.2 connection to Amazon S3"
-                   CURL_CMD="curl -v -fgL --tlsv1.2 --cacert /etc/ssl/certs/qt-cacert.pem -T \"$file\" -w \"%{http_code}\" \"`cat /tmp/signed_url`\""
-            else
-                   CURL_CMD="curl -v -fgL --cacert /etc/ssl/certs/qt-cacert.pem -T \"$file\" -w \"%{http_code}\" \"`cat /tmp/signed_url`\""
-            fi
+            tlsMessage="with TLS1.2"
+            logMessage "Attempting TLS1.2 connection to Amazon S3"
+            CURL_CMD="curl -v -fgL --tlsv1.2 --cacert /etc/ssl/certs/qt-cacert.pem -T \"$file\" -w \"%{http_code}\" \"`cat /tmp/signed_url`\""
             logMessage "URL_CMD: $CURL_CMD"                         
             result= eval $CURL_CMD > $HTTP_CODE                                  
             ec=$?
