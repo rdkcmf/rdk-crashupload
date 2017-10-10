@@ -546,7 +546,7 @@ failOverUploadToCrashPortal()
     local dirnum=''
 
     if [ "$DEVICE_TYPE" = "broadband" ];then
-        dirnum=`awk -v min=5 -v max=10 'BEGIN{srand(); print int(min+rand()*(max-min+1))}'`
+        dirnum=`awk -v min=5 -v max=100 'BEGIN{srand(); print int(min+rand()*(max-min+1))}'`
     else
         dirnum=$(( $RANDOM % 100 ))
     fi
