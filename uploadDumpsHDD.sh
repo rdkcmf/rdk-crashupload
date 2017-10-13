@@ -48,7 +48,11 @@ export PATH=$PATH:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib:/usr/lib/
 
 CORE_LOG="$LOG_PATH/core_log.txt"
-CERTFILE="/etc/ssl/certs/qt-cacert.pem"
+if [ "$DEVICE_TYPE" = "broadband" ];then
+       CERTFILE="/etc/ssl/certs/ca-certificates.crt"
+else
+       CERTFILE="/etc/ssl/certs/qt-cacert.pem"
+fi
 S3BUCKET="ccp-stbcrashes"
 HTTP_CODE="/tmp/httpcode"
 S3_FILENAME=""
@@ -492,7 +496,7 @@ uploadToS3()
     IFS=$'\n'
     logMessage "[$0]: S3 Amazon Signing URL: $S3_AMAZON_SIGNING_URL"   
     CurrentVersion=`grep imagename /$VERSION_FILE | cut -d':' -f2` 
-    status=`curl -s $TLS --cacert "/etc/ssl/certs/qt-cacert.pem" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
+    status=`curl -s $TLS --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
@@ -513,7 +517,16 @@ uploadToS3()
             logMessage "Safe params: $validDate -- $auth -- $remotePath"
             tlsMessage="with TLS1.2"
             logMessage "Attempting TLS1.2 connection to Amazon S3"
-            CURL_CMD="curl -v -fgL --tlsv1.2 --cacert /etc/ssl/certs/qt-cacert.pem -T \"$file\" -w \"%{http_code}\" \"`cat /tmp/signed_url`\""
+	    if [ "$DEVICE_TYPE" = "broadband" ] && [ "$MULTI_CORE" = "yes" ];then
+		core_output=`get_core_value`
+		if [ "$core_output" = "ARM" ];then
+		    CURL_CMD="curl -v -fgL --tlsv1.2 --interface $ARM_INTERFACE -T \"$file\" -w \"%{http_code}\" \"`cat /tmp/signed_url`\""
+		else
+		    CURL_CMD="curl -v -fgL --tlsv1.2 --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" \"`cat /tmp/signed_url`\""
+		fi
+	    else
+            	CURL_CMD="curl -v -fgL --tlsv1.2 --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" \"`cat /tmp/signed_url`\""
+	    fi
             logMessage "URL_CMD: $CURL_CMD"                         
             result= eval $CURL_CMD > $HTTP_CODE                                  
             ec=$?
@@ -843,7 +856,6 @@ processDumps()
                 logMessage "Coredump File `echo $f`"
             fi
             S3_FILENAME=`echo ${f##*/}`
-if [ "$DEVICE_TYPE" != "broadband" ];then
             count=1
             # upload to S3 amazon first
             logMessage "[$0]: $count: $DUMP_NAME S3 Upload "
@@ -874,14 +886,6 @@ if [ "$DEVICE_TYPE" != "broadband" ];then
             else
                   echo "[$0]: Execution Status: $status, S3 Amazon Upload Success"
             fi
-else
-        logMessage "[$0]:CURL $DUMP_NAME to crashportal"
-                  failOverUploadToCrashPortal "$S3_FILENAME"
-                  if [ $? -ne 0 ]; then
-                        logMessage "[$0]: Fail Over Mechanism: Failed..!"
-                        exit 1
-                  fi
-fi
 
             logMessage "Removing file $S3_FILENAME"
             rm -f $S3_FILENAME
