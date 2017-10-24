@@ -536,7 +536,7 @@ uploadToS3()
      if [ $ec -ne 0 ]; then
          logMessage "Curl finished unsuccessfully! Error code: $ec"
      else
-        logMessage "S3 Coreupload Upload is successful $tlsMessage"
+        logMessage "S3 ${DUMP_NAME} Upload is successful $tlsMessage"
      fi
     return $ec
 }
@@ -572,9 +572,9 @@ failOverUploadToCrashPortal()
     fi
     local result=$?
     if [ $result -eq 0 ]; then
-        logMessage "Success uploading file: $coreFile to $host:$remotePath/$dirnum/."
+        logMessage "Success uploading ${DUMP_NAME} file: $coreFile to $host:$remotePath/$dirnum/."
     else
-        logMessage "Uploading to the Server failed..."
+        logMessage "Uploading ${DUMP_NAME} to the Server failed..."
     fi
     return $result
 }
