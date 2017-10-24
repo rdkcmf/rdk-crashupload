@@ -405,14 +405,12 @@ fi
 
 # wait the internet connection once after boot
 
-NETWORK_TESTED="/tmp/internet_tested"
 NETWORK_TEST_ITERATIONS=6
 NETWORK_TEST_DELAY=10
 IPV4_FILE="/tmp/estb_ipv4"
 IPV6_FILE="/tmp/estb_ipv6"
 counter=1
 
-if [ ! -f "$NETWORK_TESTED" ]; then
     while [ $counter -le $NETWORK_TEST_ITERATIONS ]; do
         logMessage "Testing the internet connection, iteration $counter"
 
@@ -432,7 +430,7 @@ if [ ! -f "$NETWORK_TESTED" ]; then
                     sleep $NETWORK_TEST_DELAY
                 else
                     logMessage "Internet is up."
-                    counter=$(( NETWORK_TEST_ITERATIONS + 1 ))
+                    break
                 fi
             else
                 if [ "Y$estbIp" = "Y$DEFAULT_IP" ]; then
@@ -440,22 +438,19 @@ if [ ! -f "$NETWORK_TESTED" ]; then
                     sleep $NETWORK_TEST_DELAY
                 else
                     logMessage "Internet is up."
-                    counter=$(( NETWORK_TEST_ITERATIONS + 1 ))
+                    break
                 fi
             fi
         fi
 
         if [ $counter = $NETWORK_TEST_ITERATIONS ]; then
             logMessage "Continue without IP."
+            break
         fi
 
         counter=$(( counter + 1 ))
     done
 
-    touch $NETWORK_TESTED
-else
-    logMessage "The network has already been tested"
-fi
 
 # Upon exit, remove locking
 trap finalize EXIT
