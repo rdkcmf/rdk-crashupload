@@ -934,13 +934,13 @@ processDumps()
                 # S3 amazon fail over recovery
                 count=`expr $count + 1`
                 if [ $status -ne 0 ];then
-                     logMessage "[$0]: Execution Status: $status, S3 Amazon Upload Failed"
+                     logMessage "[$0]: Execution Status: $status, S3 Amazon Upload of $DUMP_NAME Failed"
                      logMessage "[$0]: $count: (Retry), $DUMP_NAME S3 Upload"
                      sleep 2
                      uploadToS3 "`echo $S3_FILENAME`"
                      status=$?
                 else
-                     logMessage "[$0]: uploadToS3 SUCESS: status: $status"
+                     logMessage "[$0]: $DUMP_NAME uploadToS3 SUCESS: status: $status"
                      break
                 fi
             done
@@ -948,11 +948,11 @@ processDumps()
                   logMessage "[$0]: Fail Over Mechanism: CURL $DUMP_NAME to crashportal"
                   failOverUploadToCrashPortal "$S3_FILENAME"
                   if [ $? -ne 0 ]; then
-                        logMessage "[$0]: Fail Over Mechanism: Failed..!"
+                        logMessage "[$0]: Fail Over Mechanism for $DUMP_NAME : Failed..!"
                         exit 1
                   fi
             else
-                  echo "[$0]: Execution Status: $status, S3 Amazon Upload Success"
+                  echo "[$0]: Execution Status: $status, S3 Amazon Upload of $DUMP_NAME Success"
             fi
             logMessage "Removing file $S3_FILENAME"
             rm -f $S3_FILENAME
