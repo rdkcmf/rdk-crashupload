@@ -455,6 +455,21 @@ counter=1
 # Upon exit, remove locking
 trap finalize EXIT
 
+x=0
+while [ ! -f /tmp/coredump_mutex_release -a $DUMP_FLAG -eq 1 ];then
+do        
+     logMessage "Waiting for Coredump Completion"
+     sleep 1
+     x=`expr $x + 1
+     if [ $x -eq 10 ];then break; fi
+done
+
+if [ -f /tmp/set_crash_reboot_flag ];then
+      logMessage "Skipping upload, Since Box is Rebooting now"
+      logMessage "Upload will happen on next reboot"
+      exit 0
+fi
+
 # Get the MAC address of the box
 MAC=`getMacAddressOnly`
 # Ensure MAC is not empty
