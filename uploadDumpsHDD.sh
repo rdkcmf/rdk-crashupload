@@ -570,14 +570,14 @@ failOverUploadToCrashPortal()
              output=`get_core_value`
              if [ "$output" = "ARM" ];then
                    logMessage "Upload string: curl -v --interface $ARM_INTERFACE --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
-                   curl -v --interface $ARM_INTERFACE --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                   curl -v $TLS --interface $ARM_INTERFACE --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
              else
                    logMessage "Upload string: curl -v --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
-                   curl -v --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                   curl -v $TLS --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
              fi
     else
             logMessage "Upload string: curl -v --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
-            curl -v --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+            curl -v $TLS --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
     fi
     local result=$?
     if [ $result -eq 0 ]; then
