@@ -459,7 +459,7 @@ x=0
 while [ ! -f /tmp/coredump_mutex_release -a $DUMP_FLAG -eq 1 ]; do        
      logMessage "Waiting for Coredump Completion"
      sleep 1
-     x=`expr $x + 1
+     x=`expr $x + 1`
      if [ $x -eq 10 ];then break; fi
 done
 
