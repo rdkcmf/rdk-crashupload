@@ -551,8 +551,17 @@ uploadToS3()
     local OIFS=$IFS
     IFS=$'\n'
     logMessage "[$0]: S3 Amazon Signing URL: $S3_AMAZON_SIGNING_URL"   
-    CurrentVersion=`grep imagename /$VERSION_FILE | cut -d':' -f2` 
-    status=`curl -s $TLS --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
+    CurrentVersion=`grep imagename /$VERSION_FILE | cut -d':' -f2`
+
+    IF_OPTION=""
+    if [ "$DEVICE_TYPE" = "broadband" ] && [ "$MULTI_CORE" = "yes" ];then
+          core_output=`get_core_value`
+          if [ "$core_output" = "ARM" ];then 
+                IF_OPTION="--interface $ARM_INTERFACE"
+          fi
+    fi
+
+    status=`curl -s $TLS $IF_OPTION --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
