@@ -517,9 +517,9 @@ trap finalize EXIT
 x=0
 while [ ! -f /tmp/coredump_mutex_release -a $DUMP_FLAG -eq 1 ]; do
      logMessage "Waiting for Coredump Completion"
-     sleep 1
+     sleep 3
      x=`expr $x + 1`
-     if [ $x -eq 10 ];then break; fi
+     if [ $x -eq 4 ];then break; fi
 done
 
 if [ -f /tmp/set_crash_reboot_flag ];then
