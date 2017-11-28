@@ -557,16 +557,27 @@ uploadToS3()
     if [ "$DEVICE_TYPE" = "broadband" ] && [ "$MULTI_CORE" = "yes" ];then
           core_output=`get_core_value`
           if [ "$core_output" = "ARM" ];then 
-                IF_OPTION="--interface $ARM_INTERFACE"
+                IF_OPTION="$ARM_INTERFACE"
           fi
     fi
 
-    status=`curl -s $TLS $IF_OPTION --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
+    if [ ! -z "$IF_OPTION" ]; then
+        status=`curl -s $TLS --interface $IF_OPTION --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
                                              --data-urlencode "type=$DUMP_NAME" \
                                              "$S3_AMAZON_SIGNING_URL"`
+    else
+        status=`curl -s $TLS --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
+                                             --data-urlencode "firmwareVersion=$CurrentVersion"\
+                                             --data-urlencode "env=$BUILD_TYPE"\
+                                             --data-urlencode "model=$modNum"\
+                                             --data-urlencode "type=$DUMP_NAME" \
+                                             "$S3_AMAZON_SIGNING_URL"`
+
+    fi
+
     local ec=$?
     IFS=$OIFS
     logMessage "[$0]: Execution Status: $ec, HTTP SIGN URL Response: $status"
