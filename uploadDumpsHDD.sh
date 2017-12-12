@@ -57,7 +57,11 @@ S3BUCKET="ccp-stbcrashes"
 HTTP_CODE="/tmp/httpcode"
 S3_FILENAME=""
 
-TLS="--tlsv1.2"
+TLS=“”
+# force tls1.2 for yocto video devices and all braodband devices
+if [ -f /etc/os-release ] || [ “$DEVICE_TYPE” = “broadband” ];then
+    TLS=“--tlsv1.2"
+fi
 
 if [ -f /etc/os-release ]; then
     export HOME=/home/root/
@@ -534,7 +538,7 @@ uploadToS3()
 		    CURL_CMD="curl -v -fgL --tlsv1.2 --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" \"`cat /tmp/signed_url`\""
 		fi
 	    else
-            	CURL_CMD="curl -v -fgL --tlsv1.2 --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" \"`cat /tmp/signed_url`\""
+            	CURL_CMD="curl -v -fgL $TLS --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" \"`cat /tmp/signed_url`\""
 	    fi
             logMessage "URL_CMD: $CURL_CMD"                         
             result= eval $CURL_CMD > $HTTP_CODE                                  
