@@ -78,11 +78,7 @@ HTTP_CODE="/tmp/httpcode"
 S3_FILENAME=""
 
 # Yocto conditionals
-TLS=“”
-# force tls1.2 for yocto video devices and all braodband devices
-if [ -f /etc/os-release ] || [ “$DEVICE_TYPE” = “broadband” ];then
-    TLS=“--tlsv1.2"
-fi
+TLS="--tlsv1.2"
 
 if [ -f /etc/os-release ]; then
     CORE_PATH="/var/lib/systemd/coredump/"

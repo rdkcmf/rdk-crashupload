@@ -57,11 +57,8 @@ S3BUCKET="ccp-stbcrashes"
 HTTP_CODE="/tmp/httpcode"
 S3_FILENAME=""
 
-TLS=“”
-# force tls1.2 for yocto video devices and all braodband devices
-if [ -f /etc/os-release ] || [ “$DEVICE_TYPE” = “broadband” ];then
-    TLS=“--tlsv1.2"
-fi
+# Yocto conditionals
+TLS="--tlsv1.2"
 
 if [ -f /etc/os-release ]; then
     export HOME=/home/root/
