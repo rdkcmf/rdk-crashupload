@@ -298,6 +298,25 @@ finalize()
     fi
 }
 
+sigkill_function()
+{
+    echo "Systemd Killing, Removing the script locks"
+    [ -f "$crashLoopFlagFile" ] && rm -f "$crashLoopFlagFile"
+    remove_lock $LOCK_DIR_PREFIX
+    remove_lock "$TIMESTAMP_FILENAME"
+}
+
+sigterm_function()
+{
+    echo "Systemd Terminating, Removing the script locks"
+    [ -f "$crashLoopFlagFile" ] && rm -f "$crashLoopFlagFile"
+    remove_lock $LOCK_DIR_PREFIX
+    remove_lock "$TIMESTAMP_FILENAME"
+}
+
+trap 'sigkill_function' SIGKILL
+trap 'sigterm_function' SIGTERM
+
 if [ "$DUMP_FLAG" = "1" ] ; then
     logMessage "starting coredump processing"
     WORKING_DIR="$CORE_PATH"
