@@ -996,6 +996,8 @@ processDumps()
                   failOverUploadToCrashPortal "$S3_FILENAME"
                   if [ $? -ne 0 ]; then
                         logMessage "[$0]: Fail Over Mechanism for $DUMP_NAME : Failed..!"
+			            logMessage "Removing file $S3_FILENAME"
+			            rm -f $S3_FILENAME                        
                         exit 1
                   fi
             else
