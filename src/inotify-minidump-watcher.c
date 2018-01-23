@@ -98,11 +98,9 @@ directory_watcher(const char *const directory,
                     }
                   else
                     {
-                        printf("Calling the binary %s\n",command_to_run);
                         char command[50];
                         sprintf(command,"sh %s %s",command_to_run,command_args);
                         system(command);
-                        printf("The script /lib/rdk/uploadDumps.sh execution completed..!");
                     }
                   break;
                 case FNM_NOMATCH:
