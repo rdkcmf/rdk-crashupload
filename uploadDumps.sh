@@ -678,10 +678,9 @@ VERSION_FILE="version.txt"
 VERSION_FILE_PATH="/${VERSION_FILE}"
 boxType=$BOX_TYPE
 if [ "$DEVICE_TYPE" = "broadband" ];then
-    modNumValue=`cat /version.txt | grep imagename | cut -d "=" -f 2 | cut -d "_" -f1`
-    modNum=`echo $modNumValue | cut -d ":" -f2`
+    modNum=`dmcli eRT getv Device.DeviceInfo.ModelName | grep value | cut -d ":" -f 3 | tr -d ' ' `
     if [ ! "$modNum" ];then
-        modNum=`cat /fss/gw/version.txt | grep ^imagename: | cut -d ":" -f 2 | cut -d "_" -f 1`
+        modNum=`cat /etc/device.properties | grep MODEL_NUM | cut -f2 -d=`
     fi
 else
     modNum="$(grep -i 'imagename:' ${VERSION_FILE_PATH} | head -n1 | cut -d ':' -f2 | cut -d '_' -f1)"
