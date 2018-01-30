@@ -69,6 +69,10 @@ else
     RECEIVER="/mnt/nfs/env/Receiver"
 fi
 
+encryptionEnable=false
+if [ -f /etc/os-release ]; then
+    encryptionEnable=`tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable 2>&1 > /dev/null`
+fi
 
 if [[ ! -f $CORE_LOG ]]; then
     touch $CORE_LOG
@@ -516,6 +520,7 @@ sanitize()
 
 uploadToS3()
 {
+    URLENCODE_STRING=""
     local file=$(basename $1)
     #logMessage "uploadToS3 '$(readlink $1)'"
     logMessage "uploadToS3 $1"
@@ -524,16 +529,27 @@ uploadToS3()
     local OIFS=$IFS
     IFS=$'\n'
     logMessage "[$0]: S3 Amazon Signing URL: $S3_AMAZON_SIGNING_URL"   
-    CurrentVersion=`grep imagename /$VERSION_FILE | cut -d':' -f2` 
-    status=`curl -s $TLS --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
+    CurrentVersion=`grep imagename /$VERSION_FILE | cut -d':' -f2`
+
+    if [ "$DEVICE_TYPE" != "broadband" ]; then
+        logMessage "RFC_EncryptCloudUpload_Enable:$encryptionEnable"
+        if [ "$encryptionEnable" == "true" ]; then
+            S3_MD5SUM="$(openssl md5 -binary < $file | openssl enc -base64)"
+            URLENCODE_STRING="--data-urlencode \"md5=$S3_MD5SUM\""
+        fi
+    fi
+
+    CURL_CMD="curl -s $TLS --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
                                              --data-urlencode "type=$DUMP_NAME" \
-                                             "$S3_AMAZON_SIGNING_URL"`
+                                             $URLENCODE_STRING\
+                                             "$S3_AMAZON_SIGNING_URL""
+    status=`eval $CURL_CMD > $HTTP_CODE`
     local ec=$?
     IFS=$OIFS
-    logMessage "[$0]: Execution Status: $ec, HTTP SIGN URL Response: $status"
+    logMessage "[$0]: Execution Status: $ec, HTTP SIGN URL Response: `cat $HTTP_CODE`"
     if [ $ec -eq 0 ]; then
         if [ -z "$1" ]; then
             ec=1
@@ -554,11 +570,17 @@ uploadToS3()
 		    CURL_CMD="curl -v -fgL --tlsv1.2 --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" \"`cat /tmp/signed_url`\""
 		fi
 	    else
-            	CURL_CMD="curl -v -fgL $TLS --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" \"`cat /tmp/signed_url`\""
+                S3_URL=$(cat /tmp/signed_url)
+                if [ "$encryptionEnable" != "true" ]; then
+                    S3_URL=\"$S3_URL\"
+                fi
+                CURL_CMD="curl -v -fgL $TLS --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" $S3_URL"
 	    fi
-            logMessage "URL_CMD: $CURL_CMD"                         
+            CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/-H .*https/https/"`
+            logMessage "URL_CMD: $CURL_REMOVE_HEADER"                         
             result= eval $CURL_CMD > $HTTP_CODE                                  
             ec=$?
+            rm /tmp/signed_url
             logMessage "Execution Status:$ec HTTP Response code: `cat $HTTP_CODE` "
          fi
      fi
