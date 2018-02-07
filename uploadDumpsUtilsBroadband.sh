@@ -89,8 +89,20 @@ get_mac_address()
     output=`get_core_value`
     case "$output" in
          "ATOM")
-           mac=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_WAN_MAC  | grep type: | awk '{print $5}'|tr '[:lower:]' '[:upper:]' | sed 's/://g'` ;;
-           # mac=`ifconfig $ATOM_INTERFACE | grep HWaddr | cut -d " " -f12` ;;
+           mac=""
+           wanmac_cache="/tmp/.wan_mac"
+
+           if [ ! -f $wanmac_cache ] || [ "`cat $wanmac_cache`" == "" ]; then
+               mac=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_WAN_MAC`
+               mac=`echo $mac | grep "Execution succeed" | sed 's/.*value://g' | sed 's/ //g;s/://g'`
+               if [ "$mac" != "" ]; then
+                   echo $mac > $wanmac_cache
+               fi
+           else
+               mac=`cat $wanmac_cache`
+           fi
+
+           ;;
          "ARM" )
            mac=`ifconfig $ARM_INTERFACE | grep HWaddr | cut -d " " -f7 | sed 's/://g'` ;;
           *)
