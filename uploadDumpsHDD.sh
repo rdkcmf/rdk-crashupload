@@ -503,6 +503,11 @@ logMessage "Mac address is $MAC"
 count=`find "$WORKING_DIR" -name "$DUMPS_EXTN" -type f | wc -l`
 if [ $count -eq 0 ]; then logMessage "No ${DUMP_NAME} for uploading" ; exit 0; fi
 
+#Additional sleep to ensure minidump/coredump generation 
+if [ -f /etc/os-release ];then
+     sleep 5
+fi
+
 cleanup
 
 logMessage "Portal URL: $PORTAL_URL"
