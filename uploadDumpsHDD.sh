@@ -70,7 +70,7 @@ else
 fi
 
 encryptionEnable=false
-if [ -f /etc/os-release ]; then
+if [ -f /etc/os-release ] && [ "$DEVICE_TYPE" != "broadband" ]; then 
     encryptionEnable=`tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable 2>&1 > /dev/null`
 fi
 
