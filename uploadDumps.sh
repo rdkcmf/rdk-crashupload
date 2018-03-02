@@ -76,6 +76,7 @@ fi
 S3BUCKET="ccp-stbcrashes"
 HTTP_CODE="/tmp/httpcode"
 S3_FILENAME=""
+CURL_UPLOAD_TIMEOUT=45
 
 # Yocto conditionals
 TLS=""
@@ -350,19 +351,10 @@ else
     LOCK_DIR_PREFIX="/tmp/.uploadMinidumps"
 fi
 
-if [ "$BUILD_TYPE" = "prod" ]; then
-    PORTAL_URL="crashportal.ccp.xcal.tv"
-elif [ "$BUILD_TYPE" = "vbn" ]; then
-    PORTAL_URL="vbn.crashportal.ccp.xcal.tv"
-elif [ "$BUILD_TYPE" = "dev" ]; then
-    if [ "$DEVICE_TYPE" = "broadband" ];then
-        PORTAL_URL="vbn.crashportal.ccp.xcal.tv"
-    else
-        PORTAL_URL="crashportal.dt.ccp.cable.comcast.com"
-    fi
+if [ "$DEVICE_TYPE" = "broadband" ];then
+     PORTAL_URL="rdkbcrashportal.stb.r53.xcal.tv"
 else
-    # Lab2 crashportal
-    PORTAL_URL="162.150.27.194"
+     PORTAL_URL="crashportal.stb.r53.xcal.tv"
 fi
 
 DENY_UPLOADS_FILE="/tmp/.deny_dump_uploads_till"
@@ -645,7 +637,7 @@ uploadToS3()
     fi
 
     if [ ! -z "$IF_OPTION" ]; then
-        CURL_CMD="curl -s $TLS --interface $IF_OPTION --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
+        CURL_CMD="curl -s $TLS --interface $IF_OPTION --connect-timeout $CURL_UPLOAD_TIMEOUT --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
@@ -653,7 +645,7 @@ uploadToS3()
                                              $URLENCODE_STRING\
                                              "$S3_AMAZON_SIGNING_URL""
     else
-        CURL_CMD="curl -s $TLS --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
+        CURL_CMD="curl -s $TLS --connect-timeout $CURL_UPLOAD_TIMEOUT --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
@@ -685,12 +677,12 @@ uploadToS3()
     	    if [ "$DEVICE_TYPE" = "broadband" ] && [ "$MULTI_CORE" = "yes" ];then
             	core_output=`get_core_value`
             	if [ "$core_output" = "ARM" ];then
-		    CURL_CMD="curl -v -fgL --tlsv1.2 --interface $ARM_INTERFACE -T \"$file\" -w \"%{http_code}\" $S3_URL"
+		    CURL_CMD="curl -v -fgL --connect-timeout $CURL_UPLOAD_TIMEOUT --tlsv1.2 --interface $ARM_INTERFACE -T \"$file\" -w \"%{http_code}\" $S3_URL"
 		else
-		    CURL_CMD="curl -v -fgL --tlsv1.2 --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" $S3_URL"
+		    CURL_CMD="curl -v -fgL --connect-timeout $CURL_UPLOAD_TIMEOUT --tlsv1.2 --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" $S3_URL"
 		fi
 	    else
-                CURL_CMD="curl -v -fgL $TLS --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" $S3_URL"
+                CURL_CMD="curl -v -fgL --connect-timeout $CURL_UPLOAD_TIMEOUT $TLS --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" $S3_URL"
 	    fi
             CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/AWSAccessKeyId=.*Signature=.*&//g;s/-H .*https/https/g"`
             logMessage "URL_CMD: $CURL_REMOVE_HEADER"
