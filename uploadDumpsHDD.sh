@@ -299,15 +299,10 @@ else
     LOCK_DIR_PREFIX="/tmp/.uploadMinidumps"
 fi
 
-if [ "$BUILD_TYPE" = "prod" ]; then
-    PORTAL_URL="crashportal.ccp.xcal.tv"
-elif [ "$BUILD_TYPE" = "vbn" ]; then
-    PORTAL_URL="vbn.crashportal.ccp.xcal.tv"
-elif [ "$BUILD_TYPE" = "dev" ]; then
-    PORTAL_URL="crashportal.dt.ccp.cable.comcast.com"
+if [ "$DEVICE_TYPE" = "broadband" ];then
+     PORTAL_URL="rdkbcrashportal.stb.r53.xcal.tv"
 else
-    # Lab2 crashportal
-    PORTAL_URL="162.150.27.194"
+     PORTAL_URL="crashportal.stb.r53.xcal.tv"
 fi
 
 DENY_UPLOADS_FILE="/tmp/.deny_dump_uploads_till"
