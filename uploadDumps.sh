@@ -560,7 +560,7 @@ checkMAC
 logMessage "Mac address is $MAC"
 
 count=`find "$WORKING_DIR" -name "$DUMPS_EXTN" -type f | wc -l`
-if [ $count -eq 0 ]; then logMessage "No ${DUMP_NAME} for uploading" ; exit 1; fi
+if [ $count -eq 0 ]; then logMessage "No ${DUMP_NAME} for uploading" ; exit 0; fi
 
 cleanup
 logMessage "Portal URL: $PORTAL_URL"
