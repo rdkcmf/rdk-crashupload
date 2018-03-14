@@ -576,7 +576,7 @@ uploadToS3()
                 fi
                 CURL_CMD="curl -v -fgL $TLS --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" $S3_URL"
 	    fi
-            CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/-H .*https/https/"`
+            CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/AWSAccessKeyId=.*Signature=.*&//g;s/\"//g;s/-H .*https/https/g"`
             logMessage "URL_CMD: $CURL_REMOVE_HEADER"                         
             result= eval $CURL_CMD > $HTTP_CODE                                  
             ec=$?
