@@ -94,7 +94,7 @@ get_mac_address()
 
            if [ ! -f $wanmac_cache ] || [ "`cat $wanmac_cache`" == "" ]; then
                mac=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_WAN_MAC`
-               mac=`echo $mac | grep "Execution succeed" | sed 's/.*value://g' | sed 's/ //g;s/://g'`
+               mac=`echo $mac | grep "Execution succeed" | sed 's/.*value://g' | sed 's/ //g;s/://g' | cut -c1-12`
                if [ "$mac" != "" ]; then
                    echo $mac > $wanmac_cache
                fi
