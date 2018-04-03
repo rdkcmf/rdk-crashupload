@@ -71,7 +71,9 @@ else
 fi
 
 encryptionEnable=false
-if [ -f /etc/os-release ] && [ "$DEVICE_TYPE" != "broadband" ]; then 
+if [ "$DEVICE_TYPE" == "broadband" ]; then
+    encryptionEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable | grep value | cut -d ":" -f 3 | tr -d ' '`
+elif [ -f /etc/os-release ]; then
     encryptionEnable=`tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable 2>&1 > /dev/null`
 fi
 
@@ -532,12 +534,10 @@ uploadToS3()
     logMessage "[$0]: S3 Amazon Signing URL: $S3_AMAZON_SIGNING_URL"   
     CurrentVersion=`grep imagename /$VERSION_FILE | cut -d':' -f2`
 
-    if [ "$DEVICE_TYPE" != "broadband" ]; then
-        logMessage "RFC_EncryptCloudUpload_Enable:$encryptionEnable"
-        if [ "$encryptionEnable" == "true" ]; then
-            S3_MD5SUM="$(openssl md5 -binary < $file | openssl enc -base64)"
-            URLENCODE_STRING="--data-urlencode \"md5=$S3_MD5SUM\""
-        fi
+    logMessage "RFC_EncryptCloudUpload_Enable:$encryptionEnable"
+    if [ "$encryptionEnable" == "true" ]; then
+        S3_MD5SUM="$(openssl md5 -binary < $file | openssl enc -base64)"
+        URLENCODE_STRING="--data-urlencode \"md5=$S3_MD5SUM\""
     fi
 
     CURL_CMD="curl -s $TLS --connect-timeout $CURL_UPLOAD_TIMEOUT --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
@@ -563,18 +563,18 @@ uploadToS3()
             logMessage "Safe params: $validDate -- $auth -- $remotePath"
             tlsMessage="with TLS1.2"
             logMessage "Attempting TLS1.2 connection to Amazon S3"
+            S3_URL=$(cat /tmp/signed_url)
+            if [ "$encryptionEnable" != "true" ]; then
+                S3_URL=\"$S3_URL\"
+            fi
 	    if [ "$DEVICE_TYPE" = "broadband" ] && [ "$MULTI_CORE" = "yes" ];then
 		core_output=`get_core_value`
 		if [ "$core_output" = "ARM" ];then
-		    CURL_CMD="curl -v -fgL --connect-timeout $CURL_UPLOAD_TIMEOUT --tlsv1.2 --interface $ARM_INTERFACE -T \"$file\" -w \"%{http_code}\" \"`cat /tmp/signed_url`\""
+		    CURL_CMD="curl -v -fgL --connect-timeout $CURL_UPLOAD_TIMEOUT --tlsv1.2 --interface $ARM_INTERFACE -T \"$file\" -w \"%{http_code}\" $S3_URL"
 		else
-		    CURL_CMD="curl -v -fgL --connect-timeout $CURL_UPLOAD_TIMEOUT --tlsv1.2 --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" \"`cat /tmp/signed_url`\""
+		    CURL_CMD="curl -v -fgL --connect-timeout $CURL_UPLOAD_TIMEOUT --tlsv1.2 --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" $S3_URL"
 		fi
 	    else
-                S3_URL=$(cat /tmp/signed_url)
-                if [ "$encryptionEnable" != "true" ]; then
-                    S3_URL=\"$S3_URL\"
-                fi
                 CURL_CMD="curl -v -fgL --connect-timeout $CURL_UPLOAD_TIMEOUT $TLS --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" $S3_URL"
 	    fi
             CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/AWSAccessKeyId=.*Signature=.*&//g;s/\"//g;s/-H .*https/https/g"`
