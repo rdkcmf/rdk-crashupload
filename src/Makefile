@@ -21,7 +21,7 @@ CROSS_TOOLCHAIN=$(BASE_PATH)/workXG1/tools/stbgcc-4.5.4-2.8
 CROSS_COMPILE=$(CROSS_TOOLCHAIN)/bin/mipsel-linux-uclibc
 SDK_FSROOT=$(BASE_PATH)/sdk/fsroot/ramdisk
 
-LDFLAGS+=$(GLIBS)
+LDFLAGS+=$(GLIBS) -lsecure_wrapper
 LDFLAGS+=$(DS_LIBS)
 CXXFLAGS=-Wall ${ADDED_INCLUDE}
 

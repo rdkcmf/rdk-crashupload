@@ -27,7 +27,9 @@
 #include <stdlib.h>
 #include <sys/inotify.h>
 #include <unistd.h>
-
+#ifdef YOCTO_BUILD
+#include "secure_wrapper.h"
+#endif
 #ifdef __GNUC__
 #  define ALIGNAS(TYPE) __attribute__ ((aligned(__alignof__(TYPE))))
 #else
@@ -100,8 +102,12 @@ directory_watcher(const char *const directory,
                     {
                         char command[50];
                         sprintf(command,"sh %s %s",command_to_run,command_args);
-                        system(command);
-                    }
+#ifdef YOCTO_BUILD
+                        v_secure_system(command);
+#else
+                        system(command);            
+#endif                  
+                  }
                   break;
                 case FNM_NOMATCH:
                   break;
