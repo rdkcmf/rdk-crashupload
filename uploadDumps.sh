@@ -114,7 +114,7 @@ fi
 logMessage()
 {
     message="$1"
-    echo "[PID:$$ `date -u +%Y/%m/%d-%H:%M`]: $message" >> $CORE_LOG
+    echo "[PID:$$ `date -u +%Y/%m/%d-%H:%M:%S`]: $message" >> $CORE_LOG
 }
 
 # Usage: echo "debug information" | logStdout
@@ -843,6 +843,9 @@ shouldProcessFile()
 
 processDumps()
 {
+    # wait for app buffers are flushed
+    sleep 2
+
     find -name "$DUMPS_EXTN" -type f | while read f;
     do
         local f1=$(echo "$f" | sed -e 's/[][ :+,=]//g')
@@ -912,28 +915,33 @@ processDumps()
                     rm $CEF_LOG"_mpeos-main"
                 fi
             else
-                if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ];then
-                    nice -n 19 tar -zcvf $tgzFile $dumpName $VERSION_FILE $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $cefLogFile $CORE_LOG 2>&1 | logStdout
+                if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
+                    files="$tgzFile $dumpName $VERSION_FILE $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $cefLogFile $CORE_LOG"
+                    if [ "$BUILD_TYPE" != "prod" ]; then
+                        test -f $LOG_PATH/receiver.log* && files="$files $LOG_PATH/receiver.log*"
+                        test -f $LOG_PATH/thread.log && files="$files $LOG_PATH/thread.log"
+                    fi
+                    nice -n 19 tar -zcvf $files 2>&1 | logStdout
                     if [ $? -eq 0 ]; then
-                        logMessage "Success Compressing the files, $tgzFile $dumpName $VERSION_FILE $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $cefLogFile $CORE_LOG "
+                        logMessage "Success Compressing the files $files"
                     else
-                        logMessage "Compression Failed ."
+                        logMessage "Compression Failed."
                     fi
                 elif [ "$DEVICE_TYPE" = "broadband" ]; then
                     nice -n 19 tar -zcvf $tgzFile $dumpName $VERSION_FILE $CORE_LOG 2>&1 | logStdout
                     if [ $? -eq 0 ]; then
-                        logMessage "Success Compressing the files, $tgzFile $dumpName $VERSION_FILE $CORE_LOG "
+                        logMessage "Success Compressing the files, $tgzFile $dumpName $VERSION_FILE $CORE_LOG"
                     else
                         logMessage "Compression Failed ."
                     fi
                 else
-                       echo "$0 New Model, need to add support..!"
+                    echo "$0 New Model, need to add support..!"
                 fi
             fi
             logMessage "Size of the compressed file: `ls -l $tgzFile`"
 
             rm $dumpName
-            if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ];then
+            if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
                 if [ ! -z "$STBLOG_FILE" -a -f "$STBLOG_FILE" ]; then
                     logMessage "Removing $stbLogFile"
                     rm $stbLogFile
