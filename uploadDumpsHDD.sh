@@ -520,6 +520,11 @@ sanitize()
    echo "$clean"
 }
 
+if [ -f /etc/os-release ];then
+       CERT_OPTION=""
+else
+       CERT_OPTION="--cacert $CERTFILE"
+fi
 
 uploadToS3()
 {
@@ -540,7 +545,7 @@ uploadToS3()
         URLENCODE_STRING="--data-urlencode \"md5=$S3_MD5SUM\""
     fi
 
-    CURL_CMD="curl -s $TLS --connect-timeout $CURL_UPLOAD_TIMEOUT --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
+    CURL_CMD="curl -s $TLS --connect-timeout $CURL_UPLOAD_TIMEOUT "$CERT_OPTION" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
@@ -572,10 +577,10 @@ uploadToS3()
 		if [ "$core_output" = "ARM" ];then
 		    CURL_CMD="curl -v -fgL --connect-timeout $CURL_UPLOAD_TIMEOUT --tlsv1.2 --interface $ARM_INTERFACE -T \"$file\" -w \"%{http_code}\" $S3_URL"
 		else
-		    CURL_CMD="curl -v -fgL --connect-timeout $CURL_UPLOAD_TIMEOUT --tlsv1.2 --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" $S3_URL"
+		    CURL_CMD="curl -v -fgL --connect-timeout $CURL_UPLOAD_TIMEOUT --tlsv1.2 "$CERT_OPTION" -T \"$file\" -w \"%{http_code}\" $S3_URL"
 		fi
 	    else
-                CURL_CMD="curl -v -fgL --connect-timeout $CURL_UPLOAD_TIMEOUT $TLS --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" $S3_URL"
+                CURL_CMD="curl -v -fgL --connect-timeout $CURL_UPLOAD_TIMEOUT $TLS "$CERT_OPTION" -T \"$file\" -w \"%{http_code}\" $S3_URL"
 	    fi
             CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/AWSAccessKeyId=.*Signature=.*&//g;s/\"//g;s/-H .*https/https/g"`
             logMessage "URL_CMD: $CURL_REMOVE_HEADER"                         
