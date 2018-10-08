@@ -368,6 +368,7 @@ else
     CRASH_PORTAL_PATH="/opt/crashportal_uploads/minidumps/"
     #to limit this to only one instance at any time..
     LOCK_DIR_PREFIX="/tmp/.uploadMinidumps"
+    sleep 5
 fi
 
 if [ "$DEVICE_TYPE" = "broadband" ];then
