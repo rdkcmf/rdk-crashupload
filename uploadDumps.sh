@@ -513,7 +513,7 @@ fi
 if [ "$DEVICE_TYPE" != "broadband" ];then
     # wait the internet connection once after boot
     NETWORK_TESTED="/tmp/internet_tested"
-    NETWORK_TEST_ITERATIONS=6
+    NETWORK_TEST_ITERATIONS=18
     NETWORK_TEST_DELAY=10
     IPV4_FILE="/tmp/estb_ipv4"
     IPV6_FILE="/tmp/estb_ipv6"
