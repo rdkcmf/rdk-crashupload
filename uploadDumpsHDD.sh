@@ -75,13 +75,6 @@ else
     RECEIVER="/mnt/nfs/env/Receiver"
 fi
 
-encryptionEnable=false
-if [ "$DEVICE_TYPE" == "broadband" ]; then
-    encryptionEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable | grep value | cut -d ":" -f 3 | tr -d ' '`
-elif [ -f /etc/os-release ]; then
-    encryptionEnable=`tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable 2>&1 > /dev/null`
-fi
-
 if [[ ! -f $CORE_LOG ]]; then
     touch $CORE_LOG
     chmod a+w $CORE_LOG
@@ -342,7 +335,14 @@ CodebigAvailable=0
 if [ -f /usr/bin/GetServiceUrl ]; then
     CodebigAvailable=1
     if [ "$DEVICE_TYPE" == "broadband" ]; then
-        CodeBigFirst=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable | grep value | cut -d ":" -f 3 | tr -d ' '`
+        CodeBigFirst=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable | grep value`
+        if [ "$CodeBigFirst" != "" ]; then
+            logMessage "Checking for CodeBig Support through dmcli"
+            CodeBigFirst=`echo $CodeBigFirst | cut -d ":" -f 3 | tr -d ' '`
+        else
+            logMessage "Checking for CodeBig Support through syscfg"
+            CodeBigFirst=`syscfg get CodeBigFirstEnabled`
+        fi
     else
         CodeBigFirst=`tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable 2>&1 > /dev/null`
     fi
@@ -354,6 +354,20 @@ if [ -f /usr/bin/GetServiceUrl ]; then
 	IsDirectBlocked
         UseCodebig=$?
     fi
+fi
+
+encryptionEnable=false
+if [ "$DEVICE_TYPE" == "broadband" ]; then
+    encryptionEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable | grep value`
+    if [ "$encryptionEnable" != "" ]; then
+        logMessage "Checking for Encryption Support through dmcli"
+        encryptionEnable=`echo $encryptionEnable | cut -d ":" -f 3 | tr -d ' '`
+    else
+        logMessage "Checking for Encryption Support through syscfg"
+        encryptionEnable=`syscfg get encryptcloudupload`
+    fi
+elif [ -f /etc/os-release ]; then
+    encryptionEnable=`tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable 2>&1 > /dev/null`
 fi
 
 # append timestamp in seconds to $TIMESTAMP_FILENAME
