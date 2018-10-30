@@ -1,0 +1,25 @@
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+NOTE!!! Please don't forget to comment on the following strings in src/client/linux/crash_generation/crash_generation_server.cc
+and rebuild google::breakpad. Otherwise you will not get server worked!
+
+//  if (fcntl(fds[1], F_SETFD, FD_CLOEXEC))
+//  return false;
+
+Taken from here http://hg.mozilla.org/users/tmielczarek_mozilla.com/breakpad-mq/file/dfd8d050f0a3/no-close-on-exec
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Problems:
+
+1. Linux server could not be stopped using its own features. Windows server contains OnClientConnectedCallback, OnClientDumpRequestCallback and OnClientExitedCallback,
+but Linux server contains OnClientDumpRequestCallback only. OnClientExitingCallback is not used there yet.
+
+2. If condition section for handling single client request used Linux server goes to a deadlock, because it does not close all connection explicitely, as Windows server does.
+
+3. On Rng150 all minidumps written are empty.
+
+4. Both Rng150 and Xi3 servers may become zombie somehow.
+
+
+
+Latest version of google::breakpad exception handler contains set_crash_generation_client() function wich is used by Chromium project for a crash handling purpose.
