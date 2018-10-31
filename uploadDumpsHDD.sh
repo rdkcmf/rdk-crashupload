@@ -584,7 +584,7 @@ uploadToS3()
         URLENCODE_STRING="--data-urlencode \"md5=$S3_MD5SUM\""
     fi
 
-    CURL_CMD="curl -s $TLS --connect-timeout $CURL_UPLOAD_TIMEOUT --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=$file"\
+    CURL_CMD="curl -s $TLS --connect-timeout $CURL_UPLOAD_TIMEOUT --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$file\""\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
