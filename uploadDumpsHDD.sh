@@ -813,6 +813,7 @@ if [ "$BUILD_TYPE" != "prod" ]; then
     APP_STATUS_LOG=$LOG_PATH/app_status_backup.log
     #applications.log
     APP_LOG=$LOG_PATH/applications.log
+    CRASHED_URL_FILE=$LOG_PATH/crashed_url.txt
 else
     if [ "$DUMP_FLAG" != "1" ]; then
     # if the build type is PROD and script is in minidump's mode we should add receiver log only
@@ -820,6 +821,7 @@ else
         STBLOG_FILE=$LOG_PATH/receiver.log
         #applications.log
         APP_LOG=$LOG_PATH/applications.log
+        CRASHED_URL_FILE=$LOG_PATH/crashed_url.txt
     fi
 fi
 
@@ -860,6 +862,9 @@ if [ ! -z "$APP_LOG" -a -f "$APP_LOG" ]; then
      # Ensure timestamp is not empty
      checkParameter appLogModTS
      appLogFile=`setLogFile $sha1 $MAC $appLogModTS $boxType $modNum $APP_LOG`
+fi
+if [ ! -z "$CRASHED_URL_FILE" -a -f "$CRASHED_URL_FILE" ]; then
+       crashedUrlFile=$CRASHED_URL_FILE
 fi
 
 # use for loop read all nameservers
@@ -1005,7 +1010,7 @@ processDumps()
                     rm $APP_LOG"_mpeos-main"
                 fi
             else
-                files="$tgzFile $dumpName $VERSION_FILE $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $CORE_LOG"
+                files="$tgzFile $dumpName $VERSION_FILE $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $CORE_LOG $crashedUrlFile"
                 if [ "$BUILD_TYPE" != "prod" ]; then
                     test -f $LOG_PATH/receiver.log && files="$files $LOG_PATH/receiver.log*"
                     test -f $LOG_PATH/thread.log && files="$files $LOG_PATH/thread.log"

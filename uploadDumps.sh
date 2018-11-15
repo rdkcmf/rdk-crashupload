@@ -886,6 +886,7 @@ if [ "$BUILD_TYPE" != "prod" ]; then
     APP_LOG=$LOG_PATH/applications.log
     #cef.log
     CEF_LOG=$LOG_PATH/cef.log
+    CRASHED_URL_FILE=$LOG_PATH/crashed_url.txt
 else
     if [ "$DUMP_FLAG" != "1" ]; then
     # if the build type is PROD and script is in minidump's mode we should add receiver log and applications.log
@@ -895,6 +896,7 @@ else
         APP_LOG=$LOG_PATH/applications.log
         #cef.log
         CEF_LOG=$LOG_PATH/cef.log
+        CRASHED_URL_FILE=$LOG_PATH/crashed_url.txt
     fi
 fi
 
@@ -941,6 +943,9 @@ if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ];then
        # Ensure timestamp is not empty
        checkParameter cefLogModTS
        cefLogFile=`setLogFile $sha1 $MAC $cefLogModTS $boxType $modNum $CEF_LOG`
+    fi
+    if [ ! -z "$CRASHED_URL_FILE" -a -f "$CRASHED_URL_FILE" ]; then
+       crashedUrlFile=$CRASHED_URL_FILE
     fi
 fi
 
@@ -1073,7 +1078,7 @@ processDumps()
                 fi
             else
                 if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
-                    files="$tgzFile $dumpName $VERSION_FILE $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $cefLogFile $CORE_LOG"
+                    files="$tgzFile $dumpName $VERSION_FILE $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $cefLogFile $CORE_LOG $crashedUrlFile"
                     if [ "$BUILD_TYPE" != "prod" ]; then
                         test -f $LOG_PATH/receiver.log && files="$files $LOG_PATH/receiver.log*"
                         test -f $LOG_PATH/thread.log && files="$files $LOG_PATH/thread.log"
