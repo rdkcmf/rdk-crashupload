@@ -1006,7 +1006,7 @@ processDumps()
             else
                 files="$tgzFile $dumpName $VERSION_FILE $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $CORE_LOG"
                 if [ "$BUILD_TYPE" != "prod" ]; then
-                    test -f $LOG_PATH/receiver.log* && files="$files $LOG_PATH/receiver.log*"
+                    test -f $LOG_PATH/receiver.log && files="$files $LOG_PATH/receiver.log*"
                     test -f $LOG_PATH/thread.log && files="$files $LOG_PATH/thread.log"
                 fi
                 nice -n 19 tar -zcvf $files 2>&1 | logStdout

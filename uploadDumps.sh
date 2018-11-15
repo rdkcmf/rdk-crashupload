@@ -1074,7 +1074,7 @@ processDumps()
                 if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
                     files="$tgzFile $dumpName $VERSION_FILE $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $cefLogFile $CORE_LOG"
                     if [ "$BUILD_TYPE" != "prod" ]; then
-                        test -f $LOG_PATH/receiver.log* && files="$files $LOG_PATH/receiver.log*"
+                        test -f $LOG_PATH/receiver.log && files="$files $LOG_PATH/receiver.log*"
                         test -f $LOG_PATH/thread.log && files="$files $LOG_PATH/thread.log"
                     fi
                     nice -n 19 tar -zcvf $files 2>&1 | logStdout
