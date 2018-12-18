@@ -132,6 +132,12 @@ network_commn_status()
            if [ "$INTERFACE" != "unknown" ];then
              IF_STATE=`sysevent get wan-status`
              EROUTER_IP=`ifconfig $INTERFACE | grep "inet addr" | cut -d ":" -f2 | cut -d " " -f1`
+             # Ensure the IP address here
+             while [ "$EROUTER_IP" == "" ]; do
+                   sleep 5
+                   EROUTER_IP=`ifconfig $INTERFACE | grep "inet addr" | cut -d ":" -f2 | cut -d " " -f1`
+             done
+             # Ensure both IP address and interface status
              while [ "$IF_STATE" != "started" ] && [ "$EROUTER_IP" != "" ];do
                  sleep 5
                  IF_STATE=`sysevent get wan-status`
