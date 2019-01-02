@@ -20,12 +20,6 @@
 
 CMINTERFACE="wan0"
 WANINTERFACE="erouter0"
-# Set the name of the log file using SHA1
-setLogFile()
-{
-    fileName=`basename $6`
-    echo $1"_mac"$2"_dat"$3"_box"$4"_mod"$5"_"$fileName
-}
  
 getLastModifiedTimeOfFile()
 {
