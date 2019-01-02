@@ -80,6 +80,18 @@ if [[ ! -f $CORE_LOG ]]; then
     chmod a+w $CORE_LOG
 fi
 
+# Set the name of the log file using SHA1
+setLogFile()
+{
+    fileName=`basename $6`
+    ## Do not perform log file processing if the core name is already processed
+    echo "$fileName" | grep "^.*_mac.*_dat.*_box.*_mod.*"
+    if [ $? -eq 0 ]; then
+       echo "$fileName"
+    else
+       echo $1"_mac"$2"_dat"$3"_box"$4"_mod"$5"_"$fileName
+    fi
+}
 
 # Usage: echo "debug information" | logStdout
 # This function is needed because if we would try smth like "echo 'debug' >> $LOG"
