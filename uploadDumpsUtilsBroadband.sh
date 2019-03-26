@@ -87,6 +87,10 @@ get_mac_address()
 
            if [ ! -f $wanmac_cache ] || [ "`cat $wanmac_cache`" == "" ]; then
                mac=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_WAN_MAC`
+               # ARRISXB6-9480 : fallback in case dmcli fails, e.g. CcspCrSsp crash
+               if [ "$mac" == "" ]; then
+                   mac=`ifconfig $ARM_INTERFACE | grep HWaddr | cut -d " " -f7 | sed 's/://g'` 
+               fi
                mac=`echo $mac | grep "Execution succeed" | sed 's/.*value://g' | sed 's/ //g;s/://g' | cut -c1-12`
                if [ "$mac" != "" ]; then
                    echo $mac > $wanmac_cache
