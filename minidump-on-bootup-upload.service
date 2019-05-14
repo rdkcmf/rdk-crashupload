@@ -23,5 +23,5 @@ After=network-online.target
 Requires=network-online.target
 
 [Service]
-Environment="TS="
-ExecStart=/bin/sh -c '/lib/rdk/uploadDumps.sh ${TS} 0 '
+#Environment="TS="
+ExecStart=/bin/sh -c '/lib/rdk/uploadDumps.sh "" 0 '
