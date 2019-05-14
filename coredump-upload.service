@@ -23,7 +23,7 @@ After=network-online.target
 Requires=network-online.target
 
 [Service]
-Environment="TS="
+#Environment="TS="
 #Type=oneshot
 #RemainAfterExit=yes
-ExecStart=/bin/sh -c '/lib/rdk/uploadDumps.sh ${TS} 0 '
+ExecStart=/bin/sh -c '/lib/rdk/uploadDumps.sh "" 0 '
