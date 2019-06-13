@@ -85,7 +85,7 @@ setLogFile()
 {
     fileName=`basename $6`
     ## Do not perform log file processing if the core name is already processed
-    echo "$fileName" | grep "^.*_mac.*_dat.*_box.*_mod.*"
+    echo "$fileName" | grep "^.*_mac.*_dat.*_box.*_mod.*" 2> /dev/null 1> /dev/null
     if [ $? -eq 0 ]; then
        echo "$fileName"
     else
