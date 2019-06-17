@@ -22,7 +22,7 @@ CROSS_COMPILE=$(CROSS_TOOLCHAIN)/bin/mipsel-linux-uclibc
 SDK_FSROOT=$(BASE_PATH)/sdk/fsroot/ramdisk
 
 LDFLAGS+=$(GLIBS)
-LDFLAGS+=$(DS_LIBS)
+LDFLAGS+=$(DS_LIBS) -lsecure_wrapper
 CXXFLAGS=-Wall ${ADDED_INCLUDE}
 
 all : inotify-minidump-watcher
