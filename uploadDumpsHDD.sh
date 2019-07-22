@@ -80,6 +80,8 @@ if [[ ! -f $CORE_LOG ]]; then
     chmod a+w $CORE_LOG
 fi
 
+EnableOCSPStapling="/tmp/.EnableOCSPStapling"
+EnableOCSP="/tmp/.EnableOCSPCA"
 # Set the name of the log file using SHA1
 setLogFile()
 {
@@ -492,7 +494,11 @@ downloadBlacklist()
 {
     if [[ ! -f /opt/blacklist.txt ]] || [[ $(expr $(date +%s) - $(stat -c %Y /opt/blacklist.txt)) -ge 86400 ]]; then
         logMessage "Downloading blacklisted signature list from http://s3.amazonaws.com/ccp-stbcrashes/BLACKLISTS/blacklist.txt."
-        curl --connect-timeout 10 --max-time 30 https://s3.amazonaws.com/ccp-stbcrashes/BLACKLISTS/blacklist.txt -o /opt/blacklist.txt
+        if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
+            curl --cert-status --connect-timeout 10 --max-time 30 https://s3.amazonaws.com/ccp-stbcrashes/BLACKLISTS/blacklist.txt -o /opt/blacklist.txt
+        else
+            curl --connect-timeout 10 --max-time 30 https://s3.amazonaws.com/ccp-stbcrashes/BLACKLISTS/blacklist.txt -o /opt/blacklist.txt
+        fi
     fi
 }
 
@@ -639,8 +645,13 @@ codebigUpload()
     authorizationHeader="Authorization: OAuth realm=\"\", $authorizationHeader\""
     serverUrl=`echo $CB_CLOUD_URL | sed -e 's|&oauth_consumer_key.*||g' -e 's|file=.*&filename|filename|g' -e 's|%2F|/|g'`
 
-    CURL_CMD="curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' -d \"file=$coreFile\" -H '$authorizationHeader'  \"$serverUrl&user=ccpstbscp\" --connect-timeout $CURL_UPLOAD_TIMEOUT"
-    logMessage "CURL_CMD:curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' -d \"file=$coreFile\" -H <Hidden authorization-header> \"$serverUrl&user=ccpstbscp\" --connect-timeout $CURL_UPLOAD_TIMEOUT"
+    if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
+        CURL_CMD="curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' -d \"file=$coreFile\" -H '$authorizationHeader'  \"$serverUrl&user=ccpstbscp\" --cert-status --connect-timeout $CURL_UPLOAD_TIMEOUT"
+        logMessage "CURL_CMD:curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' -d \"file=$coreFile\" -H <Hidden authorization-header> \"$serverUrl&user=ccpstbscp\" --cert-status --connect-timeout $CURL_UPLOAD_TIMEOUT"
+    else
+        CURL_CMD="curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' -d \"file=$coreFile\" -H '$authorizationHeader'  \"$serverUrl&user=ccpstbscp\" --connect-timeout $CURL_UPLOAD_TIMEOUT"
+        logMessage "CURL_CMD:curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' -d \"file=$coreFile\" -H <Hidden authorization-header> \"$serverUrl&user=ccpstbscp\" --connect-timeout $CURL_UPLOAD_TIMEOUT"
+    fi
     eval $CURL_CMD > $HTTP_CODE
     TLSRet=$?
 }
@@ -693,13 +704,23 @@ uploadToS3()
         URLENCODE_STRING="--data-urlencode \"md5=$S3_MD5SUM\""
     fi
 
-    CURL_CMD="curl -s $TLS --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
+    if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
+       CURL_CMD="curl -s $TLS --cert-status --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
                                              --data-urlencode "type=$DUMP_NAME" \
                                              $URLENCODE_STRING\
                                              "$S3_AMAZON_SIGNING_URL""
+    else
+       CURL_CMD="curl -s $TLS --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
+                                             --data-urlencode "firmwareVersion=$CurrentVersion"\
+                                             --data-urlencode "env=$BUILD_TYPE"\
+                                             --data-urlencode "model=$modNum"\
+                                             --data-urlencode "type=$DUMP_NAME" \
+                                             $URLENCODE_STRING\
+                                             "$S3_AMAZON_SIGNING_URL""
+    fi
     status=`eval $CURL_CMD > $HTTP_CODE`
     local ec=$?
     IFS=$OIFS
@@ -724,12 +745,24 @@ uploadToS3()
 	    if [ "$DEVICE_TYPE" = "broadband" ] && [ "$MULTI_CORE" = "yes" ];then
 		core_output=`get_core_value`
 		if [ "$core_output" = "ARM" ];then
-		    CURL_CMD="curl -v -fgL --tlsv1.2 --interface $ARM_INTERFACE -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+            if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
+		        CURL_CMD="curl -v -fgL --tlsv1.2 --cert-status --interface $ARM_INTERFACE -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+            else
+                CURL_CMD="curl -v -fgL --tlsv1.2 --interface $ARM_INTERFACE -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+            fi
 		else
-		    CURL_CMD="curl -v -fgL --tlsv1.2 --cacert "$CERTFILE" -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+            if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
+		        CURL_CMD="curl -v -fgL --tlsv1.2 --cert-status --cacert "$CERTFILE" -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+            else
+                CURL_CMD="curl -v -fgL --tlsv1.2 --cacert "$CERTFILE" -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+            fi
 		fi
 	    else
+             if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
+                CURL_CMD="curl -v -fgL --cert-status --connect-timeout $CURL_UPLOAD_TIMEOUT $TLS --cacert "$CERTFILE" -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+             else
                 CURL_CMD="curl -v -fgL --connect-timeout $CURL_UPLOAD_TIMEOUT $TLS --cacert "$CERTFILE" -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+             fi
 	    fi
             CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/AWSAccessKeyId=.*Signature=.*&//g;s/-H .*https/https/g"`
             logMessage "URL_CMD: $CURL_REMOVE_HEADER"                         
@@ -795,8 +828,13 @@ failOverUploadToCrashPortal()
                     if [ $skipDirect -eq 0 ]; then
                         sleep 10
                         logMessage "Codebig log upload failed, attempting direct"
-                        logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
-                        curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
+                        if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
+                            logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION --cert-status -w '%{http_code}\n' --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                            curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --cert-status --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
+                        else
+                            logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                            curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
+                        fi
                         ret=$?
                         http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
                         logMessage "Direct failover attempt, return:$ret, httpcode:$http_code"
@@ -807,8 +845,13 @@ failOverUploadToCrashPortal()
 
         else
             logMessage "Attempting direct log upload retry:$retries"
-            logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
-            curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
+            if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
+                logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION --cert-status -w '%{http_code}\n' --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --cert-status --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
+            else
+                logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
+            fi
             ret=$?
             http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
             logMessage "Direct log upload retry:$retries, return:$ret, httpcode:$http_code"
