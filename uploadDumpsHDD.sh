@@ -948,7 +948,7 @@ shouldProcessFile()
 processDumps()
 {
     # wait for app buffers are flushed
-    sleep 2
+    type flushLogger &> /dev/null && flushLogger || sleep 2
 
     find -name "$DUMPS_EXTN" -type f | while read f;
     do
@@ -1040,6 +1040,9 @@ processDumps()
                 if [ "$BUILD_TYPE" != "prod" ]; then
                     test -f $LOG_PATH/receiver.log && files="$files $LOG_PATH/receiver.log*"
                     test -f $LOG_PATH/thread.log && files="$files $LOG_PATH/thread.log"
+                else
+                    test -f $LOG_PATH/receiver.log && files="$files $LOG_PATH/receiver.log"
+                    test -f $LOG_PATH/receiver.log.1 && files="$files $LOG_PATH/receiver.log.1"
                 fi
                 nice -n 19 tar -zcvf $files 2>&1 | logStdout
                 if [ $? -eq 0 ]; then
