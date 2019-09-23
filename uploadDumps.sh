@@ -381,7 +381,7 @@ if [ "$DEVICE_TYPE" = "broadband" ];then
      PORTAL_URL="rdkbcrashportal.stb.r53.xcal.tv"
      REQUEST_TYPE=18
 else
-     PORTAL_URL="crashportal.stb.r53.xcal.tv"
+     PORTAL_URL="35.155.171.121:80"
      REQUEST_TYPE=17
 fi
 
@@ -849,8 +849,8 @@ failOverUploadToCrashPortal()
 
         else
             logMessage "Attempting direct log upload retry:$retries"
-            logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
-            curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
+            logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile http://${host}/crashportal/upload.php?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+            curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "http://${host}/crashportal/upload.php?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
             ret=$?
             http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
             logMessage "Direct log upload retry:$retries, return:$ret, httpcode:$http_code"
