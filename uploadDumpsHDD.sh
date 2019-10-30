@@ -662,7 +662,25 @@ uploadToS3()
     local file=$(basename $1)
     #logMessage "uploadToS3 '$(readlink $1)'"
     logMessage "uploadToS3 $1"
-    local app=${file%%.signal*}
+    
+    # Update upload time to corefile from uploadToS3 function.
+    corefiletime=`echo $file | awk -F '_' '{print substr($3,4)}'`
+    logMessage "CoreDump file timestamp received to uploadToS3: $corefiletime"
+    
+    uploadcurtime=`date +%Y-%m-%d-%H-%M-%S`
+    logMessage "CoreDump file timestamp before file upload: $uploadcurtime"
+    
+    updatedfile=`echo $file | sed "s/$corefiletime/$uploadcurtime/g"`
+    logMessage "CoreDump file to be uploaded: `echo $updatedfile`"
+
+    if [ -f $WORKING_DIR"/"$file ]; then
+        logMessage "Renaming the corefile under $WORKING_DIR"
+        mv $WORKING_DIR"/"$file $WORKING_DIR"/"$updatedfile
+    else
+        logMessage "Corefile:$file not found under $WORKING_DIR folder..!!!"
+    fi
+    
+    local app=${updatedfile%%.signal*}
     #get signed parameters from server
     OIFS=$IFS
     IFS=$'\n'
@@ -671,11 +689,11 @@ uploadToS3()
 
     logMessage "RFC_EncryptCloudUpload_Enable:$encryptionEnable"
     if [ "$encryptionEnable" == "true" ]; then
-        S3_MD5SUM="$(openssl md5 -binary < $file | openssl enc -base64)"
+        S3_MD5SUM="$(openssl md5 -binary < $updatedfile | openssl enc -base64)"
         URLENCODE_STRING="--data-urlencode \"md5=$S3_MD5SUM\""
     fi
 
-    CURL_CMD="curl -s $TLS --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$file\""\
+    CURL_CMD="curl -s $TLS --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
@@ -692,25 +710,26 @@ uploadToS3()
             logMessage "[$0]: S3 Amazon Signing Request Failed..!"
         else
             #make params shell-safe
-            local validDate=`sanitize "$1"`
+            local validDate=`sanitize "$updatedfile"`
             local auth=`sanitize "$2"`
             local remotePath=`sanitize "$3"`
             logMessage "Safe params: $validDate -- $auth -- $remotePath"
             tlsMessage="with TLS1.2"
             logMessage "Attempting TLS1.2 connection to Amazon S3"
             S3_URL=$(cat /tmp/signed_url)
+
             if [ "$encryptionEnable" != "true" ]; then
                 S3_URL=\"$S3_URL\"
             fi
 	    if [ "$DEVICE_TYPE" = "broadband" ] && [ "$MULTI_CORE" = "yes" ];then
 		core_output=`get_core_value`
 		if [ "$core_output" = "ARM" ];then
-		    CURL_CMD="curl -v -fgL --tlsv1.2 --interface $ARM_INTERFACE -T \"$file\" -w \"%{http_code}\" $S3_URL"
+		    CURL_CMD="curl -v -fgL --tlsv1.2 --interface $ARM_INTERFACE -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
 		else
-		    CURL_CMD="curl -v -fgL --tlsv1.2 --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" $S3_URL"
+		    CURL_CMD="curl -v -fgL --tlsv1.2 --cacert "$CERTFILE" -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
 		fi
 	    else
-                CURL_CMD="curl -v -fgL --connect-timeout $CURL_UPLOAD_TIMEOUT $TLS --cacert "$CERTFILE" -T \"$file\" -w \"%{http_code}\" $S3_URL"
+                CURL_CMD="curl -v -fgL --connect-timeout $CURL_UPLOAD_TIMEOUT $TLS --cacert "$CERTFILE" -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
 	    fi
             CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/AWSAccessKeyId=.*Signature=.*&//g;s/-H .*https/https/g"`
             logMessage "URL_CMD: $CURL_REMOVE_HEADER"                         
@@ -724,7 +743,11 @@ uploadToS3()
          logMessage "Curl finished unsuccessfully! Error code: $ec"
      else
         logMessage "S3 ${DUMP_NAME} Upload is successful $tlsMessage"
+        # Added removal of updated coredump with upload time since line 1223/1224 will remove the coredump file with older timestamp.
+        logMessage "Removing uploaded file $updatedfile"
+        rm -rf $updatedfile
      fi
+
     return $ec
 }
 
