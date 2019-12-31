@@ -722,19 +722,19 @@ uploadToS3()
 
     # Update upload time to corefile from uploadToS3 function.
     corefiletime=`echo $file | awk -F '_' '{print substr($3,4)}'`
-    logMessage "CoreDump file timestamp received to uploadToS3: $corefiletime"
+    logMessage "$DUMP_NAME file timestamp received to uploadToS3: $corefiletime"
     
     uploadcurtime=`date +%Y-%m-%d-%H-%M-%S`
-    logMessage "CoreDump file timestamp before file upload: $uploadcurtime"
+    logMessage "$DUMP_NAME file timestamp before upload: $uploadcurtime"
     
     updatedfile=`echo $file | sed "s/$corefiletime/$uploadcurtime/g"`
-    logMessage "CoreDump file to be uploaded: `echo $updatedfile`"
+    logMessage "$DUMP_NAME file to be uploaded: `echo $updatedfile`"
     
     if [ -f $WORKING_DIR"/"$file ]; then
-        logMessage "Renaming the corefile under $WORKING_DIR"
+        logMessage "Renaming the $DUMP_NAME file under $WORKING_DIR"
         mv $WORKING_DIR"/"$file $WORKING_DIR"/"$updatedfile
     else
-        logMessage "Corefile:$file not found under $WORKING_DIR folder..!!!"
+        logMessage "$DUMP_NAME file: $file not found under $WORKING_DIR folder..!!!"
     fi
 
     local app=${updatedfile%%.signal*}
@@ -851,8 +851,9 @@ uploadToS3()
          logMessage "Curl finished unsuccessfully! Error code: $ec"
      else
         logMessage "S3 ${DUMP_NAME} Upload is successful $tlsMessage"
-        # Added removal of updated coredump with upload time since line 1223/1224 will remove the coredump file with older timestamp.
-        logMessage "Removing uploaded file $updatedfile"
+        
+        #Removing updated timestamp minidump/coredump file since processDumps func will remove old timestamp minidump/coredump file.
+        logMessage "Removing uploaded $DUMP_NAME file $updatedfile"
         rm -rf $updatedfile
      fi
     return $ec
