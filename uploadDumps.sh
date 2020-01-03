@@ -733,6 +733,7 @@ uploadToS3()
     if [ -f $WORKING_DIR"/"$file ]; then
         logMessage "Renaming the $DUMP_NAME file under $WORKING_DIR"
         mv $WORKING_DIR"/"$file $WORKING_DIR"/"$updatedfile
+        S3_FILENAME=$updatedfile
     else
         logMessage "$DUMP_NAME file: $file not found under $WORKING_DIR folder..!!!"
     fi
