@@ -98,6 +98,11 @@ directory_watcher(const char *const directory,
                     }
                   else
                     {
+                        /* Exit from wait if the command to run is NULL */
+                        if(strncmp(command_to_run,"NULL",4) == 0){
+                              printf("Flag file is created. Exiting from wait \n");
+                              goto finally;
+                        }
                         printf("Calling the binary %s\n",command_to_run);
                         char command[50];
                         sprintf(command,"sh %s %s",command_to_run,command_args);
