@@ -22,11 +22,10 @@
 #This file is from crashupload repository
 #Uploads coredumps to an ftp server if there are any
 
-
 if [ -f /lib/rdk/t2Shared_api.sh ]; then
-	source /lib/rdk/t2Shared_api.sh
+    source /lib/rdk/t2Shared_api.sh
 fi
- 
+
 if [ -f /etc/device.properties ];then
      . /etc/device.properties
 else
@@ -83,7 +82,6 @@ S3BUCKET="ccp-stbcrashes"
 HTTP_CODE="/tmp/httpcode"
 S3_FILENAME=""
 CURL_UPLOAD_TIMEOUT=45
-MAX_UPLOAD_ATTEMPTS=3
 
 # Yocto conditionals
 TLS=""
@@ -216,22 +214,43 @@ sanitize()
 }
 
 
+MAX_UPLOAD_ATTEMPTS=3
+CB_MAX_UPLOAD_ATTEMPTS=1
 DIRECT_BLOCK_FILENAME="/tmp/.lastdirectfail_crashupload"
-DIRECT_BLOCK_TIME=86400
+CB_BLOCK_FILENAME="/tmp/.lastcodebigfail_crashupload"
+
 IsDirectBlocked()
 {
-    ret=0
+    directret=0
     if [ -f $DIRECT_BLOCK_FILENAME ]; then
         modtime=$(($(date +%s) - $(date +%s -r $DIRECT_BLOCK_FILENAME)))
+        remtime=$((($DIRECT_BLOCK_TIME/3600) - ($modtime/3600)))
         if [ "$modtime" -le "$DIRECT_BLOCK_TIME" ]; then
-            logMessage "CoreUpload:Last direct failed blocking is still valid, preventing direct"
-            ret=1
+            logMessage "CoreUpload:Last direct failed blocking is still valid for $remtime hrs, preventing direct"
+            directret=1
         else
             logMessage "CoreUpload:Last direct failed blocking has expired, removing $DIRECT_BLOCK_FILENAME, allowing direct"
             rm -f $DIRECT_BLOCK_FILENAME
         fi
     fi
-    return $ret
+    return $directret
+}
+
+IsCodeBigBlocked()
+{
+    codebigret=0
+    if [ -f $CB_BLOCK_FILENAME ]; then
+        modtime=$(($(date +%s) - $(date +%s -r $CB_BLOCK_FILENAME)))
+        cbremtime=$((($CB_BLOCK_TIME/60) - ($modtime/60)))
+        if [ "$modtime" -le "$CB_BLOCK_TIME" ]; then
+            logMessage "CoreUpload:Last Codebig failed blocking is still valid for $cbremtime mins, preventing Codebig"
+            codebigret=1
+        else
+            logMessage "CoreUpload:Last Codebig failed blocking has expired, removing $CB_BLOCK_FILENAME, allowing Codebig"
+            rm -f $CB_BLOCK_FILENAME
+        fi
+    fi
+    return $codebigret
 }
 
 checkParameter()
@@ -398,12 +417,13 @@ ON_STARTUP_DUMPS_CLEANED_UP_BASE="/tmp/.on_startup_dumps_cleaned_up"
 
 UseCodebig=0
 CodebigAvailable=0
+
 if [ -f /usr/bin/GetServiceUrl ]; then
-    CodebigAvailable=1
     if [ "$DEVICE_TYPE" == "broadband" ]; then
         #we are swaping dmcli and syscfg because dmcli will not work once rbus is down
         logMessage "Checking for CodeBig Support through syscfg"
         CodeBigFirst=`syscfg get CodeBigFirstEnabled`
+        CodebigAvailable=1
         if [ "$CodeBigFirst" = "" -a "$BOX_TYPE" = "XB3" ]; then
             logMessage "syscfg value got null, it may be due to calling script from atom side"
             CodeBigFirst=`rpcclient $ARM_ARPING_IP "syscfg get CodeBigFirstEnabled" | cut -d$'\n' -f4`
@@ -413,15 +433,16 @@ if [ -f /usr/bin/GetServiceUrl ]; then
                 CodeBigFirst=`echo $CodeBigFirst | cut -d ":" -f 3 | tr -d ' '`
             fi
         fi
+        if [ "$CodeBigFirst" = "true" ]; then
+            logMessage "CoreUpload:CodebigFirst is enabled"
+            UseCodebig=1
+        else
+            logMessage "CoreUpload:CodebigFirst is disabled"
+            IsDirectBlocked
+            UseCodebig=$?
+        fi
     else
-        CodeBigFirst=`tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable 2>&1 > /dev/null`
-    fi
-    if [ "$CodeBigFirst" = "true" ]; then
-        logMessage "CoreUpload:CodebigFirst is enabled"
-        UseCodebig=1
-    else
-	logMessage "CoreUpload:CodebigFirst is disabled"
-	IsDirectBlocked
+        IsDirectBlocked
         UseCodebig=$?
     fi
 fi
@@ -901,23 +922,106 @@ failOverUploadToCrashPortal()
 
     url="/upload?filename=$remotePath/$dirnum/$coreFile&file=$coreFile&user=ccpstbscp"
     retries=0
+    cbretries=0
     http_code=000
-    while [ "$http_code" = "000" ]
-    do
-        if [ $UseCodebig -eq 1 ]; then
-            logMessage "Attempting Codebig log upload retry:$retries"
-            codebigUpload $url
-            ret=$TLSRet
-            http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-            logMessage "Codebig log upload retry:$retries, return:$ret, httpcode:$http_code"
+    if [ "$DEVICE_TYPE" = "broadband" ]; then
+        while [ "$http_code" = "000" ]
+        do
+            if [ $UseCodebig -eq 1 ]; then
+                logMessage "Attempting Codebig log upload retry:$retries"
+                codebigUpload $url
+                ret=$TLSRet
+                http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
+                logMessage "Codebig log upload retry:$retries, return:$ret, httpcode:$http_code"
 		
-            if [ $retries -ge $MAX_UPLOAD_ATTEMPTS ]; then
+                if [ $retries -ge $MAX_UPLOAD_ATTEMPTS ]; then
+                    if [ "$http_code" = "000" ];then
+                        IsDirectBlocked
+                        skipDirect=$?
+                        if [ $skipDirect -eq 0 ]; then
+                            sleep 10
+                            logMessage "Codebig log upload failed, attempting direct"
+                            if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
+                               logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION --cert-status -w '%{http_code}\n' --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                               curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --cert-status --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
+                            else
+                               logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                               curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
+                            fi
+                            ret=$?
+                            http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
+                            logMessage "Direct failover attempt, return:$ret, httpcode:$http_code"
+                        fi 
+                    fi
+                    break
+                fi
+            else
+                logMessage "Attempting direct log upload retry:$retries"
+                if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
+                    logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION --cert-status -w '%{http_code}\n' --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                    curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --cert-status --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
+                else
+                    logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                    curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
+                fi
+                ret=$?
+                http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
+                logMessage "Direct log upload retry:$retries, return:$ret, httpcode:$http_code"
+
+                if [ $retries -ge $MAX_UPLOAD_ATTEMPTS ]; then
+                    if [ "$http_code" = "000" ] && [ $CodebigAvailable -eq 1 ]; then
+                        sleep 10
+                        logMessage "Direct log upload failed, attempting Codebig"
+                        codebigUpload $url
+                        ret=$TLSRet
+                        http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
+                        logMessage "Codebig failover attempt, return:$ret, httpcode:$http_code"
+                        if [ "$http_code" = "200" ]; then
+                            logMessage "Blocking direct attempts"
+                            touch $DIRECT_BLOCK_FILENAME
+                            UseCodebig=1
+                        fi
+                    fi
+                    break
+                fi
+            fi
+            retries=`expr $retries + 1`
+        done
+    else
+        if [ $UseCodebig -eq 1 ]; then
+             logMessage "failOverUploadToCrashPortal: Codebig is enabled UseCodebig=$UseCodebig"
+            if [ "$DEVICE_TYPE" == "mediaclient" ]; then
+                # Use Codebig connection connection on XI platforms
+                IsCodeBigBlocked
+                skipcodebig=$?
+                if [ $skipcodebig -eq 0 ]; then
+                    while [ $cbretries -le $CB_MAX_UPLOAD_ATTEMPTS ]
+                    do
+                        logMessage "failOverUploadToCrashPortal: Attempting Codebig core upload"
+                        codebigUpload $url
+                        ret=$TLSRet
+                        http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
+                        if [ "$http_code" = "200" ]; then
+                           logMessage "failOverUploadToCrashPortal: Codebig core upload success return:$ret, httpcode:$http_code"
+                           IsDirectBlocked
+                           skipDirect=$?
+                           if [ $skipDirect -eq 0 ]; then
+                               UseCodebig=0
+                           fi
+                           break
+                        fi
+                        logMessage "failOverUploadToCrashPortal: Codebig core upload return: retry:$cbretries ret:$ret, httpcode:$http_code"
+                        cbretries=`expr $cbretries + 1`
+                        sleep 10
+                    done
+                fi	
+
                 if [ "$http_code" = "000" ];then
                     IsDirectBlocked
-                    skipDirect=$?
-                    if [ $skipDirect -eq 0 ]; then
-                        sleep 10
-                        logMessage "Codebig log upload failed, attempting direct"
+                    skipdirect=$?
+                    if [ $skipdirect -eq 0 ]; then
+                        UseCodebig=0
+                        logMessage "failOverUploadToCrashPortal: Codebig core upload failed, attempting direct"
                         if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
                            logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION --cert-status -w '%{http_code}\n' --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
                            curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --cert-status --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
@@ -927,44 +1031,85 @@ failOverUploadToCrashPortal()
                         fi
                         ret=$?
                         http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-                        logMessage "Direct failover attempt, return:$ret, httpcode:$http_code"
-                    fi 
-                fi
-                break
-            fi
-
-        else
-            logMessage "Attempting direct log upload retry:$retries"
-            if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
-                logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION --cert-status -w '%{http_code}\n' --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
-                curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --cert-status --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
-            else
-                logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
-                curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
-            fi
-            ret=$?
-            http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-            logMessage "Direct log upload retry:$retries, return:$ret, httpcode:$http_code"
-
-            if [ $retries -ge $MAX_UPLOAD_ATTEMPTS ]; then
-                if [ "$http_code" = "000" ] && [ $CodebigAvailable -eq 1 ]; then
-                    sleep 10
-                    logMessage "Direct log upload failed, attempting Codebig"
-                    codebigUpload $url
-                    ret=$TLSRet
-                    http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-                    logMessage "Codebig failover attempt, return:$ret, httpcode:$http_code"
-                    if [ "$http_code" = "200" ]; then
-                        logMessage "Blocking direct attempts"
-                        touch $DIRECT_BLOCK_FILENAME
-                        UseCodebig=1
+                        logMessage "failOverUploadToCrashPortal: Direct core upload failover attempt, return:$ret, httpcode:$http_code"
+                    fi
+                    IsCodeBigBlocked
+                    skipcodebig=$?
+                    if [ $skipcodebig -eq 0 ]; then
+                        logMessage "failOverUploadToCrashPortal: Codebig blocking is released"
                     fi
                 fi
-                break
+            else
+                logMessage "failOverUploadToCrashPortal: Codebig log upload not supported"
+            fi
+        else
+            logMessage "failOverUploadToCrashPortal: Codebig is disabled: UseCodebig=$UseCodebig"
+            IsDirectBlocked
+            skipdirect=$?
+            if [ $skipdirect -eq 0 ]; then
+                while [ $retries -le $MAX_UPLOAD_ATTEMPTS ]
+                do
+                    logMessage "failOverUploadToCrashPortal: Attempting direct core upload"
+                    if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
+                        logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION --cert-status -w '%{http_code}\n' --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                        curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --cert-status --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
+                    else
+                        logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
+                        curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
+                    fi
+                    ret=$?
+                    http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
+                    if [ "$http_code" = "200" ];then
+                        logMessage "failOverUploadToCrashPortal: Direct core upload success, return:$ret, httpcode:$http_code"
+                        break
+                    fi
+                    logMessage "failOverUploadToCrashPortal: Direct core upload retry:$retries, return:$ret, httpcode:$http_code"
+                    retries=`expr $retries + 1`
+                    sleep 60
+                done
+            fi
+            
+            if [ "$http_code" = "000" ]; then
+                if [ "$DEVICE_TYPE" == "mediaclient" ]; then
+                    logMessage "failOverUploadToCrashPortal: Direct core upload failed, attempting Codebig"
+                    IsCodeBigBlocked
+                     skipcodebig=$?
+                    if [ $skipcodebig -eq 0 ]; then
+                        while [ $cbretries -le $CB_MAX_UPLOAD_ATTEMPTS ]
+                        do
+                            logMessage "failOverUploadToCrashPortal: Attempting Codebig core upload"
+                            codebigUpload $url
+                            ret=$TLSRet
+                            http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
+                            if [ "$http_code" = "200" ]; then
+                               logMessage "failOverUploadToCrashPortal: Codebig core upload success return:$ret, httpcode:$http_code"
+                               UseCodebig=1
+                               if [ ! -f $DIRECT_BLOCK_FILENAME ]; then
+                                   touch $DIRECT_BLOCK_FILENAME
+                                   logMessage "failOverUploadToCrashPortal: Use Codebig and Block Direct for 24 hrs "
+                               fi
+                               break
+                            fi
+                            logMessage "failOverUploadToCrashPortal: Codebig core upload return: retry:$cbretries, ret:$ret, httpcode:$http_code"
+                            cbretries=`expr $cbretries + 1`
+                            sleep 10
+                        done
+                    fi
+    
+                    if [ "$http_code" != "200" ] ; then
+                        logMessage "failOverUploadToCrashPortal: Codebig core upload failed return=$ret, httpcode:$http_code"
+                        UseCodebig=0
+                        if [ ! -f $CB_BLOCK_FILENAME ]; then
+                            touch $CB_BLOCK_FILENAME
+                            logMessage "failOverUploadToCrashPortal: Switch Direct and Blocking Codebig for 30mins"
+                        fi
+                    fi
+                else
+                    logMessage "failOverUploadToCrashPortal: Direct core upload failed return:$ret, httpcode:$http_code"
+                fi
             fi
         fi
-        retries=`expr $retries + 1`
-    done
+    fi
 
     if [ $ret -eq 0 ] && [ $http_code -eq 200 ]; then
         logMessage "Success uploading ${DUMP_NAME} file: $coreFile to $host:$remotePath/$dirnum/."
@@ -1347,3 +1492,4 @@ else
 fi
 
 finalize
+
