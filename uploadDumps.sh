@@ -21,6 +21,12 @@
 
 #This file is from crashupload repository
 #Uploads coredumps to an ftp server if there are any
+
+
+if [ -f /lib/rdk/t2Shared_api.sh ]; then
+	source /lib/rdk/t2Shared_api.sh
+fi
+ 
 if [ -f /etc/device.properties ];then
      . /etc/device.properties
 else
@@ -395,13 +401,17 @@ CodebigAvailable=0
 if [ -f /usr/bin/GetServiceUrl ]; then
     CodebigAvailable=1
     if [ "$DEVICE_TYPE" == "broadband" ]; then
-        CodeBigFirst=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable | grep value`
-        if [ "$CodeBigFirst" != "" ]; then
-            logMessage "Checking for CodeBig Support through dmcli"
-            CodeBigFirst=`echo $CodeBigFirst | cut -d ":" -f 3 | tr -d ' '`
-        else
-            logMessage "Checking for CodeBig Support through syscfg"
-            CodeBigFirst=`syscfg get CodeBigFirstEnabled`
+        #we are swaping dmcli and syscfg because dmcli will not work once rbus is down
+        logMessage "Checking for CodeBig Support through syscfg"
+        CodeBigFirst=`syscfg get CodeBigFirstEnabled`
+        if [ "$CodeBigFirst" = "" -a "$BOX_TYPE" = "XB3" ]; then
+            logMessage "syscfg value got null, it may be due to calling script from atom side"
+            CodeBigFirst=`rpcclient $ARM_ARPING_IP "syscfg get CodeBigFirstEnabled" | cut -d$'\n' -f4`
+            if [ "$CodeBigFirst" = "" ];then
+                logMessage "Checking for CodeBig Support through dmcli"
+                CodeBigFirst=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable | grep value`
+                CodeBigFirst=`echo $CodeBigFirst | cut -d ":" -f 3 | tr -d ' '`
+            fi
         fi
     else
         CodeBigFirst=`tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable 2>&1 > /dev/null`
@@ -418,13 +428,17 @@ fi
 
 encryptionEnable=false
 if [ "$DEVICE_TYPE" == "broadband" ]; then
-    encryptionEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable | grep value`
-    if [ "$encryptionEnable" != "" ]; then
-        logMessage "Checking for Encryption Support through dmcli"
-        encryptionEnable=`echo $encryptionEnable | cut -d ":" -f 3 | tr -d ' '`
-    else
-        logMessage "Checking for Encryption Support through syscfg"
-        encryptionEnable=`syscfg get encryptcloudupload`
+    #we are swaping dmcli and syscfg because dmcli will not work once rbus is down
+    logMessage "Checking for Encryption Support through syscfg"
+    encryptionEnable=`syscfg get encryptcloudupload`
+    if [ "$encryptionEnable" = "" -a "$BOX_TYPE" = "XB3" ]; then
+        logMessage "syscfg value got null, it may be due to calling script from atom side"
+        encryptionEnable=`rpcclient $ARM_ARPING_IP "syscfg get encryptcloudupload" | cut -d$'\n' -f4`
+        if [ "$encryptionEnable" = "" ];then
+            logMessage "Checking for Encryption Support through dmcli"
+            encryptionEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable | grep value`
+            encryptionEnable=`echo $encryptionEnable | cut -d ":" -f 3 | tr -d ' '`
+        fi
     fi
 elif [ -f /etc/os-release ]; then
     encryptionEnable=`tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable 2>&1 > /dev/null`
@@ -964,9 +978,10 @@ VERSION_FILE="version.txt"
 VERSION_FILE_PATH="/${VERSION_FILE}"
 boxType=$BOX_TYPE
 if [ "$DEVICE_TYPE" = "broadband" ];then
-    modNum=`dmcli eRT getv Device.DeviceInfo.ModelName | grep value | cut -d ":" -f 3 | tr -d ' ' `
+    #we are swaping dmcli and device.properties since dmcli will not work once rbus service is down
+    modNum=`cat /etc/device.properties | grep MODEL_NUM | cut -f2 -d=`
     if [ ! "$modNum" ];then
-        modNum=`cat /etc/device.properties | grep MODEL_NUM | cut -f2 -d=`
+        modNum=`dmcli eRT getv Device.DeviceInfo.ModelName | grep value | cut -d ":" -f 3 | tr -d ' ' `
     fi
 else
     modNum="$(grep -i 'imagename:' ${VERSION_FILE_PATH} | head -n1 | cut -d ':' -f2 | cut -d '_' -f1)"
