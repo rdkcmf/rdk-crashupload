@@ -30,6 +30,25 @@
 #ifdef YOCTO_BUILD
 #include "secure_wrapper.h"
 #endif
+
+/**
+ * @defgroup Crashupload Crashupload
+ *
+ * - Crashupload component helps to upload coredump and minidump files (crashes) that happened in the STBs to the crash portal server.
+ * - The crash portal processes these crash dumps and logs and provides a meaningful backtrace.
+ * - Whenever the crash happens STB will create a minidump file with ".dmp" extention at configured path(for ex: /minidumps/).
+ * - Then this dump file will be converted into tar file before getting uploaded to the RDK crash portal.
+ * - This tar file has a naming convention as build-id_mac_date_box<type_device-model_dumpfilenumber.dmp.tgz.
+ * - It is possible to download this "*.dmp.tgz" file directly from the RDK crash portal using MAC address of the device
+ *   and filters to see minidump report and to download this file.
+ * - It contains dump file and some log files like version.txt and core_log.txt.
+ * - The RDK crash portal url at which dump file gets upload can be configured in uploadDumps.sh script file in the box.
+ *
+ * @defgroup Crashupload_API Crashupload Public APIs
+ * @ingroup Crashupload
+ *
+ */
+
 #ifdef __GNUC__
 #  define ALIGNAS(TYPE) __attribute__ ((aligned(__alignof__(TYPE))))
 #else
@@ -38,12 +57,36 @@
 
 static volatile int interrupted = 0;
 
+
+/**
+ * @addtogroup Crashupload_API
+ * @{
+ */
+
+/**
+ * @brief Signal Handler function.
+ *
+ * @param[in] s Signal Type
+ *
+ */
+
 static void
 process_interrupt_handler(const int s)
 {
   if (s == SIGINT)
     interrupted = 1;
 }
+
+/**
+ * @brief This API notifies whether dump is generated in the minidump directory and triggers the
+ * upload dump script to upload the files to server.
+ *
+ * @param[in] directory          Directory name
+ * @param[in] command_to_run     Shell script to execute
+ * @param[in] command_args       Arguments for shell script
+ * @param[in] patterns           Pattern to verify, Patterns can be *.dmp, *.cmd etc.
+ * @param[in] pattern_count      Number of patterns to be verified.
+ */
 
 static int
 directory_watcher(const char *const directory,
@@ -154,6 +197,16 @@ directory_watcher(const char *const directory,
   goto finally;
 }
 
+/**
+ * @brief Main Function.
+ *
+ * This binary is used to monitor the specified directory in the box and when there is a change, corresponding upload script will kick in
+ * and uploads the files to the server.
+ *
+ * Usage: /usr/bin/inotify-minidump-watcher DIRECTORY COMMAND_TO_RUN COMMAND_ARGS PATTERN
+ * Eg: /usr/bin/inotify-minidump-watcher /minidumps /lib/rdk/uploadDumps.sh "" 0 *.dmp
+*/
+
 int
 main(const int argc, const char *const *const argv)
 {
@@ -175,4 +228,7 @@ main(const int argc, const char *const *const argv)
     return EXIT_SUCCESS;
 }
 
+/**
+ * @} // End of Doxygen
+ */
 
