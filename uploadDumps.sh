@@ -994,7 +994,11 @@ if [ "$BUILD_TYPE" != "prod" ]; then
     #Receiver Logs
     STBLOG_FILE=$LOG_PATH/receiver.log
     #OCAP Logs
-    OCAPLOG_FILE=$LOG_PATH/ocapri_log.txt
+    if [ "$DEVICE_TYPE" = "mediaclient" ]; then
+        OCAPLOG_FILE=$LOG_PATH/rmfstr_log.txt
+    else
+        OCAPLOG_FILE=$LOG_PATH/ocapri_log.txt
+    fi
     #Thread dump
     THREAD_DUMP=threaddump.txt
     #Message.txt
