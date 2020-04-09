@@ -884,10 +884,15 @@ uploadToS3()
          fi
      fi
      if [ $ec -ne 0 ]; then
-         logMessage "Curl finished unsuccessfully! Error code: $ec"
+        logMessage "Curl finished unsuccessfully! Error code: $ec"
+        if [ "$IS_T2_ENABLED" == "true" ]; then
+            t2CountNotify "SYS_ERROR_S3CoreUpload_Failed"
+        fi
      else
         logMessage "S3 ${DUMP_NAME} Upload is successful $tlsMessage"
-        
+        if [ "$IS_T2_ENABLED" == "true" ]; then
+            t2CountNotify "SYS_INFO_S3CoreUploaded"
+        fi
         #Removing updated timestamp minidump/coredump file since processDumps func will remove old timestamp minidump/coredump file.
         logMessage "Removing uploaded $DUMP_NAME file $updatedfile"
         rm -rf $updatedfile
@@ -1113,8 +1118,14 @@ failOverUploadToCrashPortal()
 
     if [ $ret -eq 0 ] && [ $http_code -eq 200 ]; then
         logMessage "Success uploading ${DUMP_NAME} file: $coreFile to $host:$remotePath/$dirnum/."
+        if [ "$IS_T2_ENABLED" == "true" ]; then
+            t2CountNotify "SYS_INFO_CrashPortalUpload_success"
+        fi
     else
         logMessage "Uploading ${DUMP_NAME} to the Server failed..."
+        if [ "$IS_T2_ENABLED" == "true" ]; then
+            t2CountNotify "SYS_ERROR_CrashPortalUpload_failed"
+        fi
     fi
     return $result
 }

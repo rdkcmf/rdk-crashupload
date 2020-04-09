@@ -18,6 +18,11 @@
 # limitations under the License.
 ##########################################################################
 
+if [ -f /lib/rdk/t2Shared_api.sh ]; then
+	source /lib/rdk/t2Shared_api.sh
+        IS_T2_ENABLED="TRUE"
+fi
+
 # functions declaration --------------------------------------------------------
 
 exit_impl()
@@ -341,7 +346,10 @@ ud_upload_dump_archive()
     ec=$?
     if [ ${ec} -eq 0 ]; then
         log_info "Success uploading file: ${UD_DUMP_ARCHIVE_FILE_PATH} \
-                  to ${UD_CPL_HOST}:${remote_path}."
+                  to ${UD_CPL_HOST}:${remote_path}." 
+        if [ "$IS_T2_ENABLED" == "TRUE" ]; then
+		t2CountNotify "SYS_INFO_CrashPortalUpload_success"
+        fi        
     else
         log_error "Uploading to ${UD_CPL_HOST} failed with error code ${ec}."
     fi
