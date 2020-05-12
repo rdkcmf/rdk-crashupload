@@ -1175,6 +1175,10 @@ else
         APP_LOG=$LOG_PATH/applications.log
         #cef.log
         CEF_LOG=$LOG_PATH/cef.log
+        #rmf_str.log
+        if [ "$DEVICE_TYPE" = "mediaclient" ]; then
+            OCAPLOG_FILE=$LOG_PATH/rmfstr_log.txt
+        fi
         CRASHED_URL_FILE=$LOG_PATH/crashed_url.txt
     fi
 fi
