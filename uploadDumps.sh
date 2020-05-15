@@ -1014,6 +1014,9 @@ failOverUploadToCrashPortal()
                                UseCodebig=0
                            fi
                            break
+                        elif [ "$http_code" = "404" ]; then
+                           logMessage "failOverUploadToCrashPortal: Received 404 response for Codebig core upload, Retry logic not needed"
+                           break
                         fi
                         logMessage "failOverUploadToCrashPortal: Codebig core upload return: retry:$cbretries ret:$ret, httpcode:$http_code"
                         cbretries=`expr $cbretries + 1`
@@ -1021,12 +1024,12 @@ failOverUploadToCrashPortal()
                     done
                 fi	
 
-                if [ "$http_code" = "000" ];then
+                if [ "x$http_code" = "x000" ];then
                     IsDirectBlocked
                     skipdirect=$?
                     if [ $skipdirect -eq 0 ]; then
                         UseCodebig=0
-                        logMessage "failOverUploadToCrashPortal: Codebig core upload failed, attempting direct"
+                        logMessage "failOverUploadToCrashPortal: Codebig core upload failed httpcode:$http_code, attempting direct"
                         if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
                            logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION --cert-status -w '%{http_code}\n' --upload-file ./$coreFile https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp"
                            curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' --upload-file ./$coreFile "https://${host}:8090/upload?filename=$remotePath/$dirnum/$coreFile&user=ccpstbscp" --cert-status --connect-timeout $CURL_UPLOAD_TIMEOUT > $HTTP_CODE
@@ -1043,6 +1046,8 @@ failOverUploadToCrashPortal()
                     if [ $skipcodebig -eq 0 ]; then
                         logMessage "failOverUploadToCrashPortal: Codebig blocking is released"
                     fi
+                else
+                    logMessage "failOverUploadToCrashPortal: Codebig core upload failed with httpcode:$http_code"
                 fi
             else
                 logMessage "failOverUploadToCrashPortal: Codebig log upload not supported"
@@ -1052,7 +1057,7 @@ failOverUploadToCrashPortal()
             IsDirectBlocked
             skipdirect=$?
             if [ $skipdirect -eq 0 ]; then
-                while [ $retries -le $MAX_UPLOAD_ATTEMPTS ]
+                while [ $retries -lt $MAX_UPLOAD_ATTEMPTS ]
                 do
                     logMessage "failOverUploadToCrashPortal: Attempting direct core upload"
                     if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
@@ -1067,6 +1072,9 @@ failOverUploadToCrashPortal()
                     if [ "$http_code" = "200" ];then
                         logMessage "failOverUploadToCrashPortal: Direct core upload success, return:$ret, httpcode:$http_code"
                         break
+                    elif [ "$http_code" = "404" ]; then
+                       logMessage "failOverUploadToCrashPortal: Received 404 response for Direct core upload, Retry logic not needed"
+                       break
                     fi
                     logMessage "failOverUploadToCrashPortal: Direct core upload retry:$retries, return:$ret, httpcode:$http_code"
                     retries=`expr $retries + 1`
@@ -1074,9 +1082,9 @@ failOverUploadToCrashPortal()
                 done
             fi
             
-            if [ "$http_code" = "000" ]; then
+            if [ "x$http_code" = "x000" ]; then
                 if [ "$DEVICE_TYPE" == "mediaclient" ]; then
-                    logMessage "failOverUploadToCrashPortal: Direct core upload failed, attempting Codebig"
+                    logMessage "failOverUploadToCrashPortal: Direct core upload failed httpcode:$http_code, attempting Codebig"
                     IsCodeBigBlocked
                      skipcodebig=$?
                     if [ $skipcodebig -eq 0 ]; then
@@ -1094,19 +1102,22 @@ failOverUploadToCrashPortal()
                                    logMessage "failOverUploadToCrashPortal: Use Codebig and Block Direct for 24 hrs "
                                fi
                                break
+                            elif [ "$http_code" = "404" ]; then
+                               logMessage "failOverUploadToCrashPortal: Received 404 response for Codebig core upload, Retry logic not needed"
+                               break
                             fi
                             logMessage "failOverUploadToCrashPortal: Codebig core upload return: retry:$cbretries, ret:$ret, httpcode:$http_code"
                             cbretries=`expr $cbretries + 1`
                             sleep 10
                         done
-                    fi
     
-                    if [ "$http_code" != "200" ] ; then
-                        logMessage "failOverUploadToCrashPortal: Codebig core upload failed return=$ret, httpcode:$http_code"
-                        UseCodebig=0
-                        if [ ! -f $CB_BLOCK_FILENAME ]; then
-                            touch $CB_BLOCK_FILENAME
-                            logMessage "failOverUploadToCrashPortal: Switch Direct and Blocking Codebig for 30mins"
+                        if [ "$http_code" != "200" ] ; then
+                            logMessage "failOverUploadToCrashPortal: Codebig core upload failed return=$ret, httpcode:$http_code"
+                            UseCodebig=0
+                            if [ ! -f $CB_BLOCK_FILENAME ]; then
+                                touch $CB_BLOCK_FILENAME
+                                logMessage "failOverUploadToCrashPortal: Switch Direct and Blocking Codebig for 30mins"
+                            fi
                         fi
                     fi
                 else
