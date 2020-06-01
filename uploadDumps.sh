@@ -73,11 +73,6 @@ export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 # causes a pipeline to produce a failure return code in case of errors
 set -o pipefail
 
-if [ "$DEVICE_TYPE" = "broadband" ];then
-       CERTFILE="/etc/ssl/certs/ca-certificates.crt"
-else
-       CERTFILE="/etc/ssl/certs/qt-cacert.pem"
-fi
 S3BUCKET="ccp-stbcrashes"
 HTTP_CODE="/tmp/httpcode"
 S3_FILENAME=""
@@ -820,7 +815,7 @@ uploadToS3()
 
     if [ ! -z "$IF_OPTION" ]; then
         if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
-            CURL_CMD="curl -s $TLS --interface $IF_OPTION --cert-status --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
+            CURL_CMD="curl -s $TLS --interface $IF_OPTION --cert-status -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
@@ -828,7 +823,7 @@ uploadToS3()
                                              $URLENCODE_STRING\
                                              "$S3_AMAZON_SIGNING_URL""
         else
-            CURL_CMD="curl -s $TLS --interface $IF_OPTION --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
+            CURL_CMD="curl -s $TLS --interface $IF_OPTION -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
@@ -838,7 +833,7 @@ uploadToS3()
         fi
     else
         if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
-        CURL_CMD="curl -s $TLS --cert-status --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
+        CURL_CMD="curl -s $TLS --cert-status -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
@@ -846,7 +841,7 @@ uploadToS3()
                                              $URLENCODE_STRING\
                                              "$S3_AMAZON_SIGNING_URL""
         else
-            CURL_CMD="curl -s $TLS --cacert "$CERTFILE" -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
+            CURL_CMD="curl -s $TLS -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
@@ -887,16 +882,16 @@ uploadToS3()
                     fi
 		    else
                if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
-		           CURL_CMD="curl -v -fgL --tlsv1.2 --cert-status --cacert "$CERTFILE" -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+		           CURL_CMD="curl -v -fgL --tlsv1.2 --cert-status -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
                else
-                   CURL_CMD="curl -v -fgL --tlsv1.2 --cacert "$CERTFILE" -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+                   CURL_CMD="curl -v -fgL --tlsv1.2 -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
                fi
 		fi
 	    else
             if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
-                CURL_CMD="curl -v -fgL $TLS --cert-status --cacert "$CERTFILE" -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+                CURL_CMD="curl -v -fgL $TLS --cert-status -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
             else
-                CURL_CMD="curl -v -fgL $TLS --cacert "$CERTFILE" -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+                CURL_CMD="curl -v -fgL $TLS -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
             fi
 	    fi
             CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/AWSAccessKeyId=.*Signature=.*&//g;s/-H .*https/https/g"`
