@@ -624,6 +624,9 @@ if [ "$DEVICE_TYPE" != "broadband" ];then
     NETWORK_TESTED="/tmp/internet_tested"
     NETWORK_TEST_ITERATIONS=18
     NETWORK_TEST_DELAY=10
+    SYSTEM_TIME_TEST_ITERATIONS=10
+    SYSTEM_TIME_TEST_DELAY=1
+    SYSTEM_TIME_TESTED="/tmp/stt_received"
     IPV4_FILE="/tmp/estb_ipv4"
     IPV6_FILE="/tmp/estb_ipv6"
     counter=1
@@ -669,6 +672,27 @@ if [ "$DEVICE_TYPE" != "broadband" ];then
         touch $NETWORK_TESTED
     else
         logMessage "The network has already been tested"
+    fi
+
+    logMessage "IP acquistion completed, Testing the system time is received"
+    if [ ! -f "$SYSTEM_TIME_TESTED" ]; then
+        while [ $counter -le $SYSTEM_TIME_TEST_ITERATIONS ]; do
+            if [ ! -f "$SYSTEM_TIME_TESTED" ]; then
+                logMessage "Waiting for STT, iteration $counter"
+                sleep $SYSTEM_TIME_TEST_DELAY
+            else
+                logMessage "Received $SYSTEM_TIME_TESTED flag"
+                break
+            fi
+
+            if [ $counter = $SYSTEM_TIME_TEST_ITERATIONS ]; then
+                logMessage "Continue without $SYSTEM_TIME_TESTED flag"
+            fi
+
+            counter=$(( counter + 1 ))
+        done
+    else
+        logMessage "Received $SYSTEM_TIME_TESTED flag"
     fi
 else
     network_commn_status
