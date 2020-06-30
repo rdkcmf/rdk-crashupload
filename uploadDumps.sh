@@ -836,27 +836,60 @@ uploadToS3()
                                              "$S3_AMAZON_SIGNING_URL""
         fi
     else
-        if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
-        CURL_CMD="curl -s $TLS --cert-status -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
-                                             --data-urlencode "firmwareVersion=$CurrentVersion"\
-                                             --data-urlencode "env=$BUILD_TYPE"\
-                                             --data-urlencode "model=$modNum"\
-                                             --data-urlencode "type=$DUMP_NAME" \
-                                             $URLENCODE_STRING\
-                                             "$S3_AMAZON_SIGNING_URL""
+        mTlsCrashdumpUpload="false"
+        bootstrapSsrUrl=""
+        if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
+            mTlsCrashdumpUpload=$(tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.MTLS.mTlsCrashdumpUpload.Enable 2>&1 > /dev/null)
+            bootstrapSsrUrl=$(tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Bootstrap.SsrUrl 2>&1 > /dev/null)
+        fi
+        if [ "$bootstrapSsrUrl" ]; then
+            S3_AMAZON_SIGNING_URL="$bootstrapSsrUrl/cgi-bin/upload_dump.cgi"
+            logMessage "Overriding the S3 Amazon SIgning URL: $S3_AMAZON_SIGNING_URL"
+        fi
+        if [ "$FORCE_MTLS" = "true" ]; then
+            logMessage "MTLS prefered for signing, Force CrashdumpUpload to true"
+            mTlsCrashdumpUpload=true;
+        fi
+        if [ "$mTlsCrashdumpUpload" = "true" ]; then
+            logMessage "Crash Upload requires Mutual Authentication for signing"
+            if [ -d /etc/ssl/certs  ]; then
+                if [ ! -f /usr/bin/GetConfigFile ]; then
+                    logMessage "Error: GetConfigFile Not Found"
+                    resp=1
+                    return $resp
+                fi
+                ID="/tmp/uydrgopwxyem"
+                GetConfigFile $ID
+            fi
+            CURL_CMD="curl --key /tmp/uydrgopwxyem --cert /etc/ssl/certs/cpe-clnt.xcal.tv.cert.pem -s $TLS -o /tmp/signed_url -w \"%{http_code}\"\
+                --data-urlencode "filename=\"$updatedfile\""\
+                --data-urlencode "firmwareVersion=$CurrentVersion"\
+                --data-urlencode "env=$BUILD_TYPE"\
+                --data-urlencode "model=$modNum"\
+                --data-urlencode "type=$DUMP_NAME" \
+                $URLENCODE_STRING\
+                "$S3_AMAZON_SIGNING_URL""
         else
             CURL_CMD="curl -s $TLS -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
-                                             --data-urlencode "firmwareVersion=$CurrentVersion"\
-                                             --data-urlencode "env=$BUILD_TYPE"\
-                                             --data-urlencode "model=$modNum"\
-                                             --data-urlencode "type=$DUMP_NAME" \
-                                             $URLENCODE_STRING\
-                                             "$S3_AMAZON_SIGNING_URL""
+                --data-urlencode "firmwareVersion=$CurrentVersion"\
+                --data-urlencode "env=$BUILD_TYPE"\
+                --data-urlencode "model=$modNum"\
+                --data-urlencode "type=$DUMP_NAME" \
+                $URLENCODE_STRING\
+                "$S3_AMAZON_SIGNING_URL""
         fi
 
+        if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
+            CURL_CMD="$CURL_CMD --cert-status"
+        fi
     fi
     status=`eval $CURL_CMD > $HTTP_CODE`
     local ec=$?
+    if [ -f /tmp/uydrgopwxyem ]; then
+        rm -rf /tmp/uydrgopwxyem
+    else
+        logMessage "MTLS not enabled"
+    fi
     IFS=$OIFS
     logMessage "[$0]: Execution Status: $ec, HTTP SIGN URL Response: `cat $HTTP_CODE`"
     if [ $ec -eq 0 ]; then
@@ -876,37 +909,59 @@ uploadToS3()
             if [ "$encryptionEnable" != "true" ]; then
                 S3_URL=\"$S3_URL\"
             fi
-    	    if [ "$DEVICE_TYPE" = "broadband" ] && [ "$MULTI_CORE" = "yes" ];then
-            	core_output=`get_core_value`
-            	if [ "$core_output" = "ARM" ];then
+            if [ "$DEVICE_TYPE" = "broadband" ] && [ "$MULTI_CORE" = "yes" ];then
+                core_output=`get_core_value`
+                if [ "$core_output" = "ARM" ];then
                     if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
-		                CURL_CMD="curl -v -fgL --tlsv1.2 --cert-status --interface $ARM_INTERFACE -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+                        CURL_CMD="curl -v -fgL --tlsv1.2 --cert-status --interface $ARM_INTERFACE -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
                     else
                         CURL_CMD="curl -v -fgL --tlsv1.2 --interface $ARM_INTERFACE -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
                     fi
-		    else
-               if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
-		           CURL_CMD="curl -v -fgL --tlsv1.2 --cert-status -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
-               else
-                   CURL_CMD="curl -v -fgL --tlsv1.2 -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
-               fi
-		fi
-	    else
-            if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
-                CURL_CMD="curl -v -fgL $TLS --cert-status -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+                else
+                    if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
+                        CURL_CMD="curl -v -fgL --tlsv1.2 --cert-status -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+                    else
+                        CURL_CMD="curl -v -fgL --tlsv1.2 -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+                    fi
+                fi
             else
-                CURL_CMD="curl -v -fgL $TLS -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+                if [ "$FORCE_MTLS" = "true" ]; then
+                    logMessage "MTLS prefered, Force CrashdumpUpload to true"
+                    mTlsCrashdumpUpload=true;
+                fi
+                if [ "$mTlsCrashdumpUpload" = "true" ]; then
+                    logMessage "Crash Upload requires Mutual Authentication"
+                    if [ -d /etc/ssl/certs ]; then
+                        if [ ! -f /usr/bin/GetConfigFile ]; then
+                            logMessage "Error: GetConfigFile Not Found"
+                            resp=1
+                            return $resp
+                        fi
+                        ID="/tmp/uydrgopwxyem"
+                        GetConfigFile $ID
+                    fi
+                    CURL_CMD="curl --key /tmp/uydrgopwxyem --cert /etc/ssl/certs/cpe-clnt.xcal.tv.cert.pem -v -fgL $TLS -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+                else
+                    CURL_CMD="curl -v -fgL $TLS -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+                fi
+                if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
+                    CURL_CMD=$CURL_CMD --cert-status
+                fi
             fi
-	    fi
             CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/AWSAccessKeyId=.*Signature=.*&//g;s/-H .*https/https/g"`
             logMessage "URL_CMD: $CURL_REMOVE_HEADER"
-            result= eval $CURL_CMD > $HTTP_CODE                                  
+            result= eval $CURL_CMD > $HTTP_CODE
             ec=$?
+            if [ -f /tmp/uydrgopwxyem ]; then
+                rm -rf /tmp/uydrgopwxyem
+            else
+                logMessage "MTLS not enabled"
+            fi
             rm /tmp/signed_url
             logMessage "Execution Status:$ec HTTP Response code: `cat $HTTP_CODE` "
-         fi
-     fi
-     if [ $ec -ne 0 ]; then
+        fi
+    fi
+    if [ $ec -ne 0 ]; then
         logMessage "Curl finished unsuccessfully! Error code: $ec"
         if [ "$IS_T2_ENABLED" == "true" ]; then
             t2CountNotify "SYS_ERROR_S3CoreUpload_Failed"
