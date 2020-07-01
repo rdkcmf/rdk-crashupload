@@ -1024,7 +1024,7 @@ failOverUploadToCrashPortal()
                     done
                 fi	
 
-                if [ "x$http_code" = "x000" ];then
+                if [ "$http_code" = "000" ];then
                     IsDirectBlocked
                     skipdirect=$?
                     if [ $skipdirect -eq 0 ]; then
@@ -1039,14 +1039,18 @@ failOverUploadToCrashPortal()
                         fi
                         ret=$?
                         http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-                        logMessage "failOverUploadToCrashPortal: Direct core upload failover attempt, return:$ret, httpcode:$http_code"
+                        if [ "$http_code" != "200" ] && [ "$http_code" != "404" ]; then
+                            logMessage "failOverUploadToCrashPortal: Direct core upload failover attempt failed, return:$ret, httpcode:$http_code"
+                        else
+                            logMessage "failOverUploadToCrashPortal: Direct core upload failover attempt received, return:$ret, httpcode:$http_code"
+                        fi
                     fi
                     IsCodeBigBlocked
                     skipcodebig=$?
                     if [ $skipcodebig -eq 0 ]; then
                         logMessage "failOverUploadToCrashPortal: Codebig blocking is released"
                     fi
-                else
+                elif [ "$http_code" != "200" ] && [ "$http_code" != "404" ]; then
                     logMessage "failOverUploadToCrashPortal: Codebig core upload failed with httpcode:$http_code"
                 fi
             else
@@ -1082,7 +1086,7 @@ failOverUploadToCrashPortal()
                 done
             fi
             
-            if [ "x$http_code" = "x000" ]; then
+            if [ "$http_code" = "000" ]; then
                 if [ "$DEVICE_TYPE" == "mediaclient" ]; then
                     logMessage "failOverUploadToCrashPortal: Direct core upload failed httpcode:$http_code, attempting Codebig"
                     IsCodeBigBlocked
@@ -1111,7 +1115,7 @@ failOverUploadToCrashPortal()
                             sleep 10
                         done
     
-                        if [ "$http_code" != "200" ] ; then
+                        if [ "$http_code" != "200" ] && [ "$http_code" != "404" ]; then
                             logMessage "failOverUploadToCrashPortal: Codebig core upload failed return=$ret, httpcode:$http_code"
                             UseCodebig=0
                             if [ ! -f $CB_BLOCK_FILENAME ]; then
@@ -1121,8 +1125,10 @@ failOverUploadToCrashPortal()
                         fi
                     fi
                 else
-                    logMessage "failOverUploadToCrashPortal: Direct core upload failed return:$ret, httpcode:$http_code"
+                    logMessage "failOverUploadToCrashPortal: Codebig log upload not supported"
                 fi
+            elif [ "$http_code" != "200" ] && [ "$http_code" != "404" ]; then
+                logMessage "failOverUploadToCrashPortal: Direct core upload failed return:$ret, httpcode:$http_code"
             fi
         fi
     fi
