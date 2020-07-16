@@ -129,6 +129,40 @@ network_commn_status()
            INTERFACE=`get_interface_value`
            if [ "$INTERFACE" != "unknown" ];then
              IF_STATE=`sysevent get wan-status`
+             if [ "x$BOX_TYPE" = "xHUB4" ]; then
+                CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
+                if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
+                   EROUTER_IP=`ifconfig $HUB4_IPV6_INTERFACE | grep "inet addr" | cut -d ":" -f2 | cut -d " " -f1`
+                   # Ensure the IP address here
+                   while [ "$EROUTER_IP" == "" ]; do
+                     sleep 5
+                      EROUTER_IP=`ifconfig $HUB4_IPV6_INTERFACE | grep "inet addr" | cut -d ":" -f2 | cut -d " " -f1`
+                   done
+                   # Ensure both IP address and interface status
+                   while [ "$IF_STATE" != "started" ] && [ "$EROUTER_IP" != "" ];do
+                         sleep 5
+                         IF_STATE=`sysevent get wan-status`
+                         if [ ! "$EROUTER_IP" ];then
+                         EROUTER_IP=`ifconfig $HUB4_IPV6_INTERFACE | grep "inet addr" | cut -d ":" -f2 | cut -d " " -f1`
+                         fi
+                   done
+                 else
+                     EROUTER_IP=`ifconfig $INTERFACE | grep "inet addr" | cut -d ":" -f2 | cut -d " " -f1`
+                     # Ensure the IP address here
+                     while [ "$EROUTER_IP" == "" ]; do
+                           sleep 5
+                           EROUTER_IP=`ifconfig $INTERFACE | grep "inet addr" | cut -d ":" -f2 | cut -d " " -f1`
+                     done
+                     # Ensure both IP address and interface status
+                     while [ "$IF_STATE" != "started" ] && [ "$EROUTER_IP" != "" ];do
+                           sleep 5
+                           IF_STATE=`sysevent get wan-status`
+                           if [ ! "$EROUTER_IP" ];then
+                              EROUTER_IP=`ifconfig $INTERFACE | grep "inet addr" | cut -d ":" -f2 | cut -d " " -f1`
+                           fi
+                     done
+                fi
+            else
              EROUTER_IP=`ifconfig $INTERFACE | grep "inet addr" | cut -d ":" -f2 | cut -d " " -f1`
              # Ensure the IP address here
              while [ "$EROUTER_IP" == "" ]; do
