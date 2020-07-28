@@ -178,7 +178,7 @@ POTOMAC_USER=ccpstbscp
 CRASHTS=$(date +%Y-%m-%d-%H-%M-%S)
 DUMP_FLAG=$2
 
-if [ "$DUMP_FLAG" = "1" ] ; then
+if [ "$DUMP_FLAG" == "1" ] ; then
     DUMP_NAME="coredump"
 else
     DUMP_NAME="minidump"
@@ -339,7 +339,7 @@ cleanup()
             touch "$ON_STARTUP_DUMPS_CLEANED_UP"
        fi
     else
-       if [ $DUMP_FLAG -eq 1 ];then
+       if [ "$DUMP_FLAG" == "1" ];then
             rm -rf /opt/.upload_on_startup
        fi
     fi
@@ -375,7 +375,7 @@ sigterm_function()
 trap 'sigkill_function' SIGKILL
 trap 'sigterm_function' SIGTERM
 
-if [ "$DUMP_FLAG" = "1" ] ; then
+if [ "$DUMP_FLAG" == "1" ] ; then
     logMessage "starting coredump processing"
     WORKING_DIR="$CORE_PATH"
     DUMPS_EXTN=*core.prog*.gz
@@ -715,7 +715,7 @@ if isBuildBlacklisted; then
 fi
 
 x=0
-while [ ! -f /tmp/coredump_mutex_release -a $DUMP_FLAG -eq 1 ]; do
+while [ ! -f /tmp/coredump_mutex_release ] && [ "$DUMP_FLAG" == "1" ]; do
      logMessage "Waiting for Coredump Completion"
      sleep 3
      x=`expr $x + 1`
@@ -1534,7 +1534,7 @@ processDumps()
     done
 }
 
-if [ "$DUMP_FLAG" = "0" ]; then
+if [ "$DUMP_FLAG" == "0" ]; then
     processDumps
 else
     for i in 1 2 3; do
