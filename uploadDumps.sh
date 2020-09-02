@@ -100,7 +100,6 @@ if [ "$DEVICE_TYPE" = "broadband" ];then
         fi
 fi
 
-
 # Log file setup
 CORE_LOG="$LOG_PATH/core_log.txt"
 if [[ ! -f $CORE_LOG ]]; then
@@ -568,23 +567,28 @@ markAsCrashLoopedAndUpload()
 # Blacklist will only be downloaded if there is no /opt/blacklist.txt, or it's modification date is older then 1 day.
 downloadBlacklist()
 {
-    if [[ ! -f /opt/blacklist.txt ]] || [[ $(expr $(date +%s) - $(stat -c %Y /opt/blacklist.txt)) -ge 86400 ]]; then
+    if [[ ! -f $BLACKLIST_PATH ]] || [[ $(expr $(date +%s) - $(stat -c %Y $BLACKLIST_PATH)) -ge 86400 ]]; then
         logMessage "Downloading blacklisted signature list from http://s3.amazonaws.com/ccp-stbcrashes/BLACKLISTS/blacklist.txt."
         if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
-            curl --cert-status --connect-timeout 10 --max-time 30 https://s3.amazonaws.com/ccp-stbcrashes/BLACKLISTS/blacklist.txt -o /opt/blacklist.txt
+            curl --cert-status --connect-timeout 10 --max-time 30 https://s3.amazonaws.com/ccp-stbcrashes/BLACKLISTS/blacklist.txt -o $BLACKLIST_PATH
         else
-            curl --connect-timeout 10 --max-time 30 https://s3.amazonaws.com/ccp-stbcrashes/BLACKLISTS/blacklist.txt -o /opt/blacklist.txt
+            curl --connect-timeout 10 --max-time 30 https://s3.amazonaws.com/ccp-stbcrashes/BLACKLISTS/blacklist.txt -o $BLACKLIST_PATH
         fi
     fi
 }
 
 isBuildBlacklisted()
 {
+    if [ "$DEVICE_TYPE" = "broadband" ];then
+        BLACKLIST_PATH="/nvram/blacklist.txt"
+    else
+        BLACKLIST_PATH="/opt/blacklist.txt"
+    fi
     downloadBlacklist
-    if [ ! -f /opt/blacklist.txt ]; then
+    if [ ! -f $BLACKLIST_PATH ]; then
         return 255
     fi
-    local blacklist=$(cat /opt/blacklist.txt)
+    local blacklist=$(cat $BLACKLIST_PATH)
 
     # get version
     local version=$(grep 'imagename:' /version.txt|sed -e 's?imagename:??g')
