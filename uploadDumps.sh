@@ -764,10 +764,10 @@ codebigUpload()
 
     if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
         CURL_CMD="curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' -d \"file=$coreFile\" -H '$authorizationHeader'  \"$serverUrl&user=ccpstbscp\" --cert-status --connect-timeout $CURL_UPLOAD_TIMEOUT"
-        logMessage "CURL_CMD:curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' -d \"file=$coreFile\" -H <Hidden authorization-header> \"$serverUrl&user=ccpstbscp\" --cert-status --connect-timeout $CURL_UPLOAD_TIMEOUT"
+        logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' -d \"file=$coreFile\" -H <Hidden authorization-header> \"$serverUrl&user=ccpstbscp\" --cert-status --connect-timeout $CURL_UPLOAD_TIMEOUT"
     else
         CURL_CMD="curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' -d \"file=$coreFile\" -H '$authorizationHeader'  \"$serverUrl&user=ccpstbscp\" --connect-timeout $CURL_UPLOAD_TIMEOUT"
-        logMessage "CURL_CMD:curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' -d \"file=$coreFile\" -H <Hidden authorization-header> \"$serverUrl&user=ccpstbscp\" --connect-timeout $CURL_UPLOAD_TIMEOUT"
+        logMessage "Upload string: curl -v $TLS $INTERFACE_OPTION -w '%{http_code}\n' -d \"file=$coreFile\" -H <Hidden authorization-header> \"$serverUrl&user=ccpstbscp\" --connect-timeout $CURL_UPLOAD_TIMEOUT"
     fi
     eval $CURL_CMD > $HTTP_CODE
     TLSRet=$?
