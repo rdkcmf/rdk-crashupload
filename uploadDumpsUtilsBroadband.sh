@@ -184,7 +184,7 @@ get_model_value()
     case "$output" in
         "ARM")
                #ToDo: fss/gw is XB3 specific shouldn't be here
-               model_value=`cat /fss/gw/version.txt | grep ^imagename= | cut -d "=" -f 2 | cut -d "_" -f 1`
+               model_value=`cat /fss/gw/version.txt | grep ^imagename: | cut -d ":" -f 2 | cut -d "_" -f 1`
                ;;
         "ATOM")
                model_value=`cat /version.txt | grep ^imagename: | cut -d ":" -f 2 | cut -d "_" -f 1`
@@ -200,6 +200,6 @@ getModel()
 {
   #ToDo: fss/gw is XB3 specific shouldn't be here
   #This Method will only work for ARM
-  echo `cat /fss/gw/version.txt | grep ^imagename= | cut -d "=" -f 2 | cut -d "_" -f 1`
+  echo `cat /fss/gw/version.txt | grep ^imagename: | cut -d ":" -f 2 | cut -d "_" -f 1`
 }
 

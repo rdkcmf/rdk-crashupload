@@ -98,6 +98,6 @@ Uptime()
 ## Get Model No of the box
 getModel()
 {
-  echo `cat /fss/gw/version.txt | grep ^imagename= | cut -d "=" -f 2 | cut -d "_" -f 1`
+  echo `cat /fss/gw/version.txt | grep ^imagename: | cut -d ":" -f 2 | cut -d "_" -f 1`
 }
 
