@@ -18,6 +18,7 @@
 ##########################################################################
 [Unit]
 Description=Path Exists
+OnFailure=path-fail-notifier@%n.service
 
 [Path]
 PathExistsGlob=/minidumps/*.dmp
