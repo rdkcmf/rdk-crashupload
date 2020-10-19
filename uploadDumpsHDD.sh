@@ -34,14 +34,16 @@ set -o pipefail
 . /etc/device.properties
 . $RDK_PATH/utils.sh
 . $RDK_PATH/commonUtils.sh
-
+if [ -f $RDK_PATH/getSecureDumpStatus.sh ];then
+. $RDK_PATH/getSecureDumpStatus.sh
+fi
 
 # Override Options for testing non PROD builds
 if [ "$DEVICE_TYPE" = "broadband" ];then
 	if [ -f /nvram/coredump.properties -a $BUILD_TYPE != "prod" ];then
 		. /nvram/coredump.properties
 	fi
-else 
+else
 	if [ -f /opt/coredump.properties -a $BUILD_TYPE != "prod" ];then
      		. /opt/coredump.properties
 	fi
@@ -69,7 +71,7 @@ fi
 
 if [ -f /etc/os-release ]; then
     export HOME=/home/root/
-    CORE_PATH="/var/lib/systemd/coredump/"
+    CORE_PATH=$CORE_PATH
     RECEIVER="/home/root/Receiver"
 else
     export HOME=/
@@ -343,7 +345,7 @@ if [ "$DUMP_FLAG" = "1" ] ; then
     CRASH_PORTAL_PATH="$PERSISTENT_PATH/crashportal_uploads/coredumps/"
 else
     logMessage "starting minidump processing"
-    WORKING_DIR="$PERSISTENT_PATH/minidumps"
+    WORKING_DIR="$MINIDUMPS_PATH"
     DUMPS_EXTN=*.dmp
     TARBALLS=*.dmp.tgz
     VersionFile="version.txt"
@@ -1118,7 +1120,7 @@ else
     fi
 fi
 
-COREFILES_BACKUP_DIR=$PERSISTENT_PATH/corefiles_back
+COREFILES_BACKUP_DIR=$CORE_BACK_PATH
 
 # Receiver binary is used to calculate SHA1 marker which is used to find debug file for the coredumps
 sha1=`getSHA1 $RECEIVER`
@@ -1260,9 +1262,21 @@ processDumps()
                     logFileCopy 0
                     dumpName=`setLogFile $sha1 $MAC $CRASHTS $boxType $modNum $f`
                 fi
+		if [ "$SEC_DUMP" = "true" ]; then
+			if [ "${#dumpName}" -ge "135" ]; then
+			#Removing the HEADER of the corefile due to ecryptfs limitation as file can't be open when it exceeds 140 characters.
+			dumpName="${dumpName#*_}"
+			fi
+		fi
                 tgzFile=$dumpName".core.tgz"
             else
                 dumpName=`setLogFile $sha1 $MAC $CRASHTS $boxType $modNum $f`
+		if [ "$SEC_DUMP" = "true" ]; then
+			if [ "${#dumpName}" -ge "135" ]; then
+			#Removing the HEADER of the corefile due to ecryptfs limitation as file can't be open when it exceeds 140 characters.
+			dumpName="${dumpName#*_}"
+			fi
+		fi
                 logFileCopy 0
                 tgzFile=$dumpName".tgz"
             fi

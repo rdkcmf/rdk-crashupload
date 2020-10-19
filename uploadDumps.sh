@@ -54,6 +54,9 @@ if [ "$DEVICE_TYPE" != "mediaclient" ] && [ -f $RDK_PATH/commonUtils.sh ]; then
      . $RDK_PATH/commonUtils.sh
 fi
 
+if [ -f /lib/rdk/getSecureDumpStatus.sh ];then
+. /lib/rdk/getSecureDumpStatus.sh
+fi
 
 # Override Options for testing non PROD builds
 if [ "$DEVICE_TYPE" = "broadband" ];then
@@ -86,7 +89,7 @@ if [ -f /etc/os-release ] || [ "$DEVICE_TYPE" = "broadband" ];then
 fi
 
 if [ -f /etc/os-release ]; then
-    CORE_PATH="/var/lib/systemd/coredump/"
+	CORE_PATH=$CORE_PATH
 fi
 
 if [ "$DEVICE_TYPE" = "broadband" ];then
@@ -388,7 +391,7 @@ else
     if [ "$DEVICE_TYPE" = "broadband" ];then
         WORKING_DIR="/minidumps"
     else
-        WORKING_DIR="/opt/minidumps"
+        WORKING_DIR="$MINIDUMPS_PATH"
     fi
     DUMPS_EXTN=*.dmp
     TARBALLS=*.dmp.tgz
@@ -1414,9 +1417,21 @@ processDumps()
                     dumpName=`setLogFile $sha1 $MAC $CRASHTS $boxType $modNum $f`
                     logFileCopy 0
                 fi
+		if [ "$SEC_DUMP" = "true" ]; then
+			if [ "${#dumpName}" -ge "135" ]; then
+			#Removing the HEADER of the corefile due to ecryptfs limitation as file can't be open when it exceeds 140 characters.
+			dumpName="${dumpName#*_}"
+			fi
+		fi
                 tgzFile=$dumpName".core.tgz"
             else
                 dumpName=`setLogFile $sha1 $MAC $CRASHTS $boxType $modNum $f`
+		if [ "$SEC_DUMP" = "true" ]; then
+			if [ "${#dumpName}" -ge "135" ]; then
+			#Removing the HEADER of the corefile due to ecryptfs limitation as file can't be open when it exceeds 140 characters.
+			dumpName="${dumpName#*_}"
+			fi
+		fi
                 if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ];then
                     logFileCopy 0
                 fi
