@@ -70,7 +70,7 @@ else
 fi
 
 # export PATH and LD_LIBRARY_PATH for curl
-export PATH=$PATH:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
+export PATH=$PATH:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin
 export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
 # causes a pipeline to produce a failure return code in case of errors
