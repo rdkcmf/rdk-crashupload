@@ -1113,6 +1113,7 @@ if [ "$BUILD_TYPE" != "prod" ]; then
     #applications.log
     APP_LOG=$LOG_PATH/applications.log
     CRASHED_URL_FILE=$LOG_PATH/crashed_url.txt
+    WPEFRAMEWORK_LOG=$LOG_PATH/wpeframework.log
 else
     if [ "$DUMP_FLAG" != "1" ]; then
     # if the build type is PROD and script is in minidump's mode we should add receiver log only
@@ -1121,6 +1122,7 @@ else
         #applications.log
         APP_LOG=$LOG_PATH/applications.log
         CRASHED_URL_FILE=$LOG_PATH/crashed_url.txt
+        WPEFRAMEWORK_LOG=$LOG_PATH/wpeframework.log
     fi
 fi
 
@@ -1165,6 +1167,12 @@ fi
 if [ ! -z "$CRASHED_URL_FILE" -a -f "$CRASHED_URL_FILE" ]; then
        crashedUrlFile=$CRASHED_URL_FILE
 fi
+if [ ! -z "$WPEFRAMEWORK_LOG" -a -f "$WPEFRAMEWORK_LOG" ]; then
+     wpeLogModTS=`getLastModifiedTimeOfFile $WPEFRAMEWORK_LOG`
+     # Ensure timestamp is not empty
+     checkParameter wpeLogModTS
+     wpeLogFile=`setLogFile $sha1 $MAC $wpeLogModTS $boxType $modNum $WPEFRAMEWORK_LOG`
+fi
 
 # use for loop read all nameservers
 logFileCopy()
@@ -1188,6 +1196,9 @@ logFileCopy()
     fi
     if [ ! -z "$APP_LOG" -a -f "$APP_LOG" ]; then
         tail -n ${line_count} $APP_LOG > $appLogFile
+    fi
+    if [ ! -z "$WPEFRAMEWORK_LOG" -a -f "$WPEFRAMEWORK_LOG" ]; then
+        tail -n ${line_count} $WPEFRAMEWORK_LOG > $wpeLogFile
     fi
 }
 
@@ -1297,9 +1308,9 @@ processDumps()
 
             logMessage "Size of the file: `ls -l $dumpName`"
             if [ "$DUMP_FLAG" == "1" ] ; then
-                nice -n 19 tar -zcvf $tgzFile $dumpName $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $VERSION_FILE $CORE_LOG 2>&1 | logStdout
+                nice -n 19 tar -zcvf $tgzFile $dumpName $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $wpeLogFile $VERSION_FILE $CORE_LOG 2>&1 | logStdout
                 if [ $? -eq 0 ]; then
-                    logMessage "Success Compressing the files, $tgzFile $dumpName $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $VERSION_FILE $CORE_LOG "
+                    logMessage "Success Compressing the files, $tgzFile $dumpName $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $wpeLogFile $VERSION_FILE $CORE_LOG "
                 else
                     logMessage "Compression Failed ."
                 fi
@@ -1320,8 +1331,11 @@ processDumps()
                 if [ ! -z "$APP_LOG" -a -f $APP_LOG"_mpeos-main" ]; then
                     rm $APP_LOG"_mpeos-main"
                 fi
+                if [ ! -z "$WPEFRAMEWORK_LOG" -a -f $WPEFRAMEWORK_LOG"_mpeos-main" ]; then
+                    rm $WPEFRAMEWORK_LOG"_mpeos-main"
+                fi
             else
-                files="$tgzFile $dumpName $VERSION_FILE $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $CORE_LOG $crashedUrlFile"
+                files="$tgzFile $dumpName $VERSION_FILE $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $wpeLogFile $CORE_LOG $crashedUrlFile"
                 if [ "$BUILD_TYPE" != "prod" ]; then
                     test -f $LOG_PATH/receiver.log && files="$files $LOG_PATH/receiver.log*"
                     test -f $LOG_PATH/thread.log && files="$files $LOG_PATH/thread.log"
@@ -1362,6 +1376,10 @@ processDumps()
             if [ -f $WORKING_DIR"/"$VERSION_FILE ]; then
                 logMessage "Removing ${WORKING_DIR}/${VERSION_FILE}"
                 rm $WORKING_DIR"/"$VERSION_FILE
+            fi
+            if [ ! -z "$WPEFRAMEWORK_LOG" -a -f "$WPEFRAMEWORK_LOG" ]; then
+                logMessage "Removing $wpeLogFile"
+                rm $wpeLogFile
             fi
         fi
     done
