@@ -55,6 +55,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib:/usr/lib/
 
 CORE_LOG="$LOG_PATH/core_log.txt"
 S3BUCKET="ccp-stbcrashes"
+s3bucketurl="s3.amazonaws.com"
 HTTP_CODE="/tmp/httpcode"
 S3_FILENAME=""
 CURL_UPLOAD_TIMEOUT=45
@@ -370,7 +371,10 @@ if [ "$DEVICE_TYPE" = "broadband" ];then
      PORTAL_URL="rdkbcrashportal.stb.r53.xcal.tv"
      REQUEST_TYPE=18
 else
-     PORTAL_URL="crashportal.stb.r53.xcal.tv"
+     PORTAL_URL=$(tr181 -g Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalSTBUrl 2>&1)
+     if [ -z "$PORTAL_URL" ]; then
+         PORTAL_URL="crashportal.stb.r53.xcal.tv"
+     fi
      REQUEST_TYPE=17
 fi
 
@@ -526,12 +530,19 @@ markAsCrashLoopedAndUpload()
 # Blacklist will only be downloaded if there is no /opt/blacklist.txt, or it's modification date is older then 1 day.
 downloadBlacklist()
 {
+    if [ "$DEVICE_TYPE" != "broadband" ]; then
+        s3bucketurl=$(tr181 -g Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.S3BucketUrl 2>&1)
+        if [ -z "$s3bucketurl" ]; then
+            s3bucketurl="s3.amazonaws.com"
+        fi
+    fi
+
     if [[ ! -f /opt/blacklist.txt ]] || [[ $(expr $(date +%s) - $(stat -c %Y /opt/blacklist.txt)) -ge 86400 ]]; then
-        logMessage "Downloading blacklisted signature list from http://s3.amazonaws.com/ccp-stbcrashes/BLACKLISTS/blacklist.txt."
+        logMessage "Downloading blacklisted signature list from http://${s3bucketurl}/ccp-stbcrashes/BLACKLISTS/blacklist.txt."
         if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
-            curl --cert-status --connect-timeout 10 --max-time 30 https://s3.amazonaws.com/ccp-stbcrashes/BLACKLISTS/blacklist.txt -o /opt/blacklist.txt
+            curl --cert-status --connect-timeout 10 --max-time 30 https://${s3bucketurl}/ccp-stbcrashes/BLACKLISTS/blacklist.txt -o /opt/blacklist.txt
         else
-            curl --connect-timeout 10 --max-time 30 https://s3.amazonaws.com/ccp-stbcrashes/BLACKLISTS/blacklist.txt -o /opt/blacklist.txt
+            curl --connect-timeout 10 --max-time 30 https://${s3bucketurl}/ccp-stbcrashes/BLACKLISTS/blacklist.txt -o /opt/blacklist.txt
         fi
     fi
 }
@@ -758,6 +769,14 @@ uploadToS3()
     #get signed parameters from server
     OIFS=$IFS
     IFS=$'\n'
+    
+    if [ "$DEVICE_TYPE" != "broadband" ]; then
+        S3_AMAZON_SIGNING_URL=$(tr181 -g Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.S3SigningUrl 2>&1)
+        if [ -z "$S3_AMAZON_SIGNING_URL" ];then
+            . /etc/device.properties
+        fi
+    fi
+
     logMessage "[$0]: S3 Amazon Signing URL: $S3_AMAZON_SIGNING_URL"   
     CurrentVersion=`grep imagename /$VERSION_FILE | cut -d':' -f2`
 

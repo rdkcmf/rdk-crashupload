@@ -164,11 +164,20 @@ ud_initialize()
     UD_WORKING_PATH=${UD_MINIDUMPS_WORKING_PATH}
 
     if [ "${UD_BUILD_TYPE}" = "prod" ]; then
-        UD_CPL_HOST="crashportal.ccp.xcal.tv"
+        UD_CPL_HOST=$(tr181 -g Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalPRODUrl 2>&1)
+        if [ -z "$UD_CPL_HOST" ]; then
+            UD_CPL_HOST="crashportal.ccp.xcal.tv"
+        fi        
     elif [ "${UD_BUILD_TYPE}" = "vbn" ]; then
-        UD_CPL_HOST="vbn.crashportal.ccp.xcal.tv"
+        UD_CPL_HOST=$(tr181 -g Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalVBNUrl 2>&1)
+        if [ -z "$UD_CPL_HOST" ]; then
+            UD_CPL_HOST="vbn.crashportal.ccp.xcal.tv"
+        fi
     elif [ "${UD_BUILD_TYPE}" = "dev" ]; then
-        UD_CPL_HOST="crashportal.dt.ccp.cable.comcast.com"
+        UD_CPL_HOST=$(tr181 -g Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.CrashUpload.crashPortalDEVUrl 2>&1)
+        if [ -z "$UD_CPL_HOST" ]; then
+            UD_CPL_HOST="crashportal.dt.ccp.cable.comcast.com"
+        fi
     else
         # LAB2 Crash Portal
         UD_CPL_HOST="162.150.27.194"
