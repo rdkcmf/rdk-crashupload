@@ -69,6 +69,17 @@ if [ -f /etc/os-release ] || [ "$DEVICE_TYPE" = "broadband" ];then
     TLS="--tlsv1.2"
 fi
 
+UPLOAD_FLAG=$3
+
+if [ "x$UPLOAD_FLAG" = "xsecure" ];then
+       MINIDUMPS_PATH="/opt/secure/minidumps"
+       CORE_PATH="/opt/secure/corefiles"
+else
+       MINIDUMPS_PATH="/opt/minidumps"
+       CORE_PATH="/var/lib/systemd/coredump"
+fi
+
+
 if [ -f /etc/os-release ]; then
     export HOME=/home/root/
     CORE_PATH=$CORE_PATH

@@ -88,8 +88,17 @@ if [ -f /etc/os-release ] || [ "$DEVICE_TYPE" = "broadband" ];then
     TLS="--tlsv1.2"
 fi
 
+UPLOAD_FLAG=$3
 if [ -f /etc/os-release ]; then
 	CORE_PATH=$CORE_PATH
+fi
+
+if [ "x$UPLOAD_FLAG" = "xsecure" ];then
+        CORE_PATH="/opt/secure/corefiles"
+        MINIDUMPS_PATH="/opt/secure/minidumps"
+else
+        CORE_PATH="/var/lib/systemd/coredump"
+	MINIDUMPS_PATH="/opt/minidumps"
 fi
 
 if [ "$DEVICE_TYPE" = "broadband" ];then
