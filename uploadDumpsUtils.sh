@@ -35,7 +35,14 @@ Timestamp()
 # Get the MAC address of the machine
 getMacAddressOnly()
 {
-     mac=`ifconfig $WANINTERFACE | grep HWaddr | cut -d " " -f7 | sed 's/://g'`
+     PARTER_ID=`syscfg get PartnerID`
+     if [ "$PARTER_ID" = "sky-italia" ] || [ "$PARTER_ID" = "sky-uk" ]; then
+         #FEATURE_RDKB_WAN_MANAGER
+         wan_if=`syscfg get wan_physical_ifname`
+         mac=`cat /sys/class/net/$wan_if/address | tr '[a-f]' '[A-F]' `
+     else
+         mac=`ifconfig $WANINTERFACE | grep HWaddr | cut -d " " -f7 | sed 's/://g'`
+     fi
      echo $mac
 }
 
@@ -72,7 +79,14 @@ getMacAddress()
 ## Get eSTB mac address
 getErouterMacAddress()
 {
-    erouterMac=`ifconfig $WANINTERFACE | grep HWaddr | cut -d " " -f7`
+    PARTER_ID=`syscfg get PartnerID`
+    if [ "$PARTER_ID" = "sky-italia" ] || [ "$PARTER_ID" = "sky-uk" ]; then
+        #FEATURE_RDKB_WAN_MANAGER
+        wan_if=`syscfg get wan_physical_ifname`
+        erouterMac=`cat /sys/class/net/$wan_if/address | tr '[a-f]' '[A-F]' `
+    else
+        erouterMac=`ifconfig $WANINTERFACE | grep HWaddr | cut -d " " -f7`
+    fi
     echo $erouterMac
 }
 

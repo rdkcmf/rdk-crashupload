@@ -56,8 +56,15 @@ get_core_value()
 get_interface_value()
 {
    output=""
-   if [ -f /tmp/if_info ];then
-         output=`cat /tmp/if_info`
+   PARTER_ID=`syscfg get PartnerID`
+   if [ "$PARTER_ID" = "sky-italia" ] || [ "$PARTER_ID" = "sky-uk" ]; then
+       #FEATURE_RDKB_WAN_MANAGER
+       wan_if=`syscfg get wan_physical_ifname`
+       output=$wan_if
+   else
+       if [ -f /tmp/if_info ];then
+           output=`cat /tmp/if_info`
+       fi
    fi
    if [ ! "$output" ];then
          output=`get_core_value`
@@ -101,6 +108,7 @@ get_mac_address()
 
            ;;
          "ARM" )
+
            mac=`ifconfig $ARM_INTERFACE | grep HWaddr | cut -d " " -f7 | sed 's/://g'` ;;
           *)
            mac="00000000";;
