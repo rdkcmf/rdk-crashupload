@@ -56,8 +56,14 @@ get_core_value()
 get_interface_value()
 {
    output=""
-   if [ -f /tmp/if_info ];then
-         output=`cat /tmp/if_info`
+   if [ "$BOX_TYPE" = "HUB4" ]; then
+       #FEATURE_RDKB_WAN_MANAGER
+       wan_if=`syscfg get wan_physical_ifname`
+       output=$wan_if
+   else   
+       if [ -f /tmp/if_info ];then
+             output=`cat /tmp/if_info`
+       fi
    fi
    if [ ! "$output" ];then
          output=`get_core_value`
