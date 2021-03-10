@@ -177,6 +177,7 @@ network_commn_status()
                     EROUTER_IP=`ifconfig $INTERFACE | grep "inet addr" | cut -d ":" -f2 | cut -d " " -f1`
                  fi
             done
+	   fi
           fi
           ;;
         "ATOM")
