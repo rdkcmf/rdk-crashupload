@@ -26,4 +26,4 @@ Requires=network-online.target
 #Environment="TS="
 #Type=oneshot
 #RemainAfterExit=yes
-ExecStart=/bin/sh -c '/lib/rdk/uploadDumps.sh "" 0 '
+ExecStart=/bin/busybox sh -c '/lib/rdk/uploadDumps.sh "" 0 '
