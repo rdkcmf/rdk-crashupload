@@ -122,6 +122,26 @@ fi
 
 EnableOCSPStapling="/tmp/.EnableOCSPStapling"
 EnableOCSP="/tmp/.EnableOCSPCA"
+
+#get telemetry opt out status
+getOptOutStatus()
+{
+    optoutStatus=0
+    currentVal="false"
+    #check if feature is enabled through rfc
+    rfcStatus=$(tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryOptOut.Enable 2>&1 > /dev/null)
+    #check the current option
+    if [ -f /opt/tmtryoptout ]; then
+        currentVal=$(cat /opt/tmtryoptout)
+    fi
+    if [ "x$rfcStatus" == "xtrue" ]; then
+        if [ "x$currentVal" == "xtrue" ]; then
+            optoutStatus=1
+        fi
+    fi
+    return $optoutStatus
+}
+
 # Set the name of the log file using SHA1
 setLogFile()
 {
@@ -562,7 +582,7 @@ removePendingDumps()
 {
     find "$WORKING_DIR" -name "$DUMPS_EXTN" -o -name "*.tgz" |
       while read file; do
-          logMessage "Removing $file because upload limit has been reached or build is blacklisted"
+          logMessage "Removing $file because upload limit has been reached or build is blacklisted or TelemetryOptOut is set"
           rm -f $file
       done
 }
@@ -734,6 +754,15 @@ trap finalize EXIT
 
 if isBuildBlacklisted; then
     logMessage "Skipping upload. The build is blacklisted."
+    removePendingDumps
+    exit
+fi
+
+#skip upload if opt out is set to true
+getOptOutStatus
+opt_out=$?
+if [ $opt_out -eq 1 ]; then
+    logMessage "Coreupload is disabled as TelemetryOptOut is set"
     removePendingDumps
     exit
 fi
@@ -1370,6 +1399,7 @@ processDumps()
             fi
             S3_FILENAME=`echo ${f##*/}`
             count=1
+
             # upload to S3 amazon first
             logMessage "[$0]: $count: $DUMP_NAME S3 Upload "
             uploadToS3 "`echo $S3_FILENAME`" 
