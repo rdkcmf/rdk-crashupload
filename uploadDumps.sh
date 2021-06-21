@@ -24,6 +24,7 @@
 
 if [ -f /lib/rdk/t2Shared_api.sh ]; then
     source /lib/rdk/t2Shared_api.sh
+    IS_T2_ENABLED="true"
 fi
 
 if [ -f /etc/device.properties ];then
@@ -790,6 +791,9 @@ done
 
 if [ -f /tmp/set_crash_reboot_flag ];then
       logMessage "Skipping upload, Since Box is Rebooting now"
+      if [ "$IS_T2_ENABLED" == "true" ]; then
+            t2CountNotify "SYST_INFO_CoreUpldSkipped"
+      fi
       logMessage "Upload will happen on next reboot"
       exit 0
 fi
@@ -974,6 +978,9 @@ uploadToS3()
         if [ -z "$1" ]; then
             ec=1
             logMessage "[$0]: S3 Amazon Signing Request Failed..!"
+	    if [ "$IS_T2_ENABLED" == "true" ]; then
+		    t2CountNotify "SYST_ERR_S3signing_failed"
+            fi
         else
             #make params shell-safe
             local validDate=`sanitize "$updatedfile"`
@@ -1043,6 +1050,9 @@ uploadToS3()
         logMessage "Curl finished unsuccessfully! Error code: $ec"
         if [ "$IS_T2_ENABLED" == "true" ]; then
             t2CountNotify "SYS_ERROR_S3CoreUpload_Failed"
+	    if [ "$ec" -eq 6 ]; then
+                 t2CountNotify "SYST_INFO_CURL6"
+            fi
         fi
      else
         logMessage "S3 ${DUMP_NAME} Upload is successful $tlsMessage"
@@ -1429,6 +1439,9 @@ processDumps()
                      status=$?
                 else
                      logMessage "[$0]: $DUMP_NAME uploadToS3 SUCESS: status: $status"
+		     if [ "$DUMP_NAME" == "minidump" ] && [ "$IS_T2_ENABLED" == "true" ]; then
+			     t2CountNotify "SYST_INFO_minidumpUpld"
+		     fi
                      break
                 fi
             done

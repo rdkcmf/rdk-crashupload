@@ -361,6 +361,9 @@ ud_upload_dump_archive()
         fi        
     else
         log_error "Uploading to ${UD_CPL_HOST} failed with error code ${ec}."
+	if [ "$IS_T2_ENABLED" == "TRUE" ]; then
+                t2CountNotify "SYST_ERR_CrashPortalUpload_failed"
+        fi
     fi
 }
 
