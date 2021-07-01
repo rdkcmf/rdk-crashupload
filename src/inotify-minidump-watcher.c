@@ -149,11 +149,24 @@ directory_watcher(const char *const directory,
                               goto finally;
                         }
                         printf("Calling the binary %s\n",command_to_run);
-                        char command[50];
-                        sprintf(command,"sh %s %s",command_to_run,command_args);
 #ifdef YOCTO_BUILD
-                        v_secure_system("sh %s %s",command_to_run,command_args);
+                        v_secure_system("sh -c '%s %s'",command_to_run,command_args);
 #else
+                        char command[50];
+
+                        if(command_to_run == NULL || command_args == NULL)
+                        {
+                           errmsg = "NULL";
+                           goto catch;
+                        }
+
+                        if (sizeof(command) <=  (strlen(command_to_run)+strlen(command_args)+strlen("ssh -c ' '")))
+                        {
+                           errmsg = "command buffer overflow";
+                           goto catch;
+                        }
+                        sprintf(command,"sh -c '%s %s'",command_to_run,command_args);
+
                         system(command);
 #endif
                         printf("The script /lib/rdk/uploadDumps.sh execution completed..!");
