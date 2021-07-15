@@ -81,6 +81,8 @@ s3bucketurl="s3.amazonaws.com"
 HTTP_CODE="/tmp/httpcode"
 S3_FILENAME=""
 CURL_UPLOAD_TIMEOUT=45
+FOUR_EIGHTY_SECS=480
+MAX_CORE_FILES=4
 
 # Yocto conditionals
 TLS=""
@@ -323,12 +325,12 @@ deleteAllButTheMostRecentFile()
 {
     path=$1
     num_of_files=`find "$path" -type f | wc -l`
-    if [ "$num_of_files" -gt 1 ]; then
-        most_recent_file=`find "$path" -type f -exec stat -c "%Y %n" {} + | sort -r | head -n 1 | cut -d' ' -f2`
-        most_recent_file=`basename "${most_recent_file}"`
-        # Pace X1 does not support "-not" for find, have to use "!" here:
-        deleted_files=`find "$path" -type f ! -name "${most_recent_file}" -print -exec rm -f {} \;`
-        logMessage "Deleting dump files: ${deleted_files}"
+    if [ "$num_of_files" -gt "$MAX_CORE_FILES" ]; then
+        val=$((num_of_files - MAX_CORE_FILES))
+        cd $path && ls -t1 | tail -n $val >> /tmp/dumps_to_delete.txt
+        logMessage "Deleting dump files: `cat /tmp/dumps_to_delete.txt`"
+        while read line; do rm -rf $line; done < /tmp/dumps_to_delete.txt
+        rm -rf /tmp/dumps_to_delete.txt
     fi
 }
 
@@ -660,6 +662,16 @@ if [ "$WAIT_FOR_LOCK" = "wait_for_lock" ]; then
     create_lock_or_wait $LOCK_DIR_PREFIX
 else
     create_lock_or_exit $LOCK_DIR_PREFIX
+fi
+
+#defer code upload for 8 mins of uptime to avoid CPU load during bootup(Only for Video devices)
+if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
+    uptime_val=`cat /proc/uptime | awk '{ split($1,a,".");  print a[1]; }'`
+    if [ $uptime_val -lt $FOUR_EIGHTY_SECS ]; then
+        sleep_time=$((FOUR_EIGHTY_SECS - uptime_val))
+        logMessage "Deferring reboot for $sleep_time seconds"
+        sleep $sleep_time
+    fi
 fi
 
 if [ "$DEVICE_TYPE" != "broadband" ];then
