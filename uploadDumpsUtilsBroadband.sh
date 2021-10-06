@@ -46,8 +46,8 @@ get_core_value()
            if [ $processor ] && [ $processor -gt 0 ] ;then
                   core="ARM"
            fi
-           if [ "$BOX_TYPE" = "SR300" ];then
-                  #ADA SR300 - Handle aarch64
+           if [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ];then
+                  #ADA SR300 and SE501 - Handle aarch64
                   processor=`lscpu | grep aarch64| wc -l`
                   if [ $processor ] && [ $processor -gt 0 ] ;then
                       core="ARM"
@@ -63,7 +63,7 @@ get_core_value()
 get_interface_value()
 {
    output=""
-   if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ]; then
+   if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ]; then
        #FEATURE_RDKB_WAN_MANAGER
        wan_if=`syscfg get wan_physical_ifname`
        output=$wan_if
@@ -142,7 +142,7 @@ network_commn_status()
            INTERFACE=`get_interface_value`
            if [ "$INTERFACE" != "unknown" ];then
              IF_STATE=`sysevent get wan-status`
-             if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ]; then
+             if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ] || [ "x$BOX_TYPE" = "xSE501" ]; then
                 CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
                 if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
                    EROUTER_IP=`ifconfig $HUB4_IPV6_INTERFACE | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
