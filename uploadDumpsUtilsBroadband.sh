@@ -113,7 +113,15 @@ get_mac_address()
 
            ;;
          "ARM" )
-           mac=`ifconfig $ARM_INTERFACE | grep HWaddr | cut -d " " -f7 | sed 's/://g'` ;;
+           mac=`ifconfig $ARM_INTERFACE | grep HWaddr | cut -d " " -f7 | sed 's/://g'` 
+           #if we dont have mac on interface, use sysevent
+           #mac from sysevent is irrespective of connection types(adsl(atm0),vdsl(erouter0),wanoe(erouter0))
+           if [ -z "$mac" ]; then
+                if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ]; then
+                    mac=$(sysevent get eth_wan_mac | sed 's/://g')
+                fi
+           fi
+           ;;
           *)
            mac="00000000";;
     esac
