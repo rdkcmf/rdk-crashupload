@@ -1237,18 +1237,40 @@ shouldProcessFile()
     fi
 }
 
-add_crashed_log_file()
+get_crashed_log_file()
 {
     file="$1"
     pname=`echo $file | awk -F_ '{print $1}'`
     pname=${pname#"./"} #Remove ./ from the dump name
     logMessage "Process crashed = $pname"
-    get_logs=`awk -v proc="$pname" -F= '$1 ~ proc {print $2}' $LOGMAPPER_FILE`
-    logMessage "Crashed process log file: $get_logs"
-    for i in $(echo $get_logs | sed -n 1'p' | tr ',' '\n'); do
+    log_files=`awk -v proc="$pname" -F= '$1 ~ proc {print $2}' $LOGMAPPER_FILE`
+    logMessage "Crashed process log file(s): $log_files"
+    for i in $(echo $log_files | sed -n 1'p' | tr ',' '\n'); do
         echo "$LOG_PATH/$i" >> $LOG_FILES
     done
-    logMessage "Logs: `cat $LOG_FILES`"
+}
+
+add_crashed_log_file()
+{
+    files="$@"
+
+    line_count=5000
+    if [ "$BUILD_TYPE" = "prod" ]; then
+       line_count=500
+    fi
+
+    while read line
+    do
+        if [ ! -z "$line" -a -f "$line" ]; then
+            logModTS=`getLastModifiedTimeOfFile $line`
+            checkParameter logModTS
+            process_log=`setLogFile $sha1 $MAC $logModTS $boxType $modNum $line`
+            tail -n ${line_count} $line > $process_log
+            logMessage "Adding File: $process_log to minidump tarball"
+            files="$files $process_log"
+        fi
+    done < $LOG_FILES
+    rm -rf $LOG_FILES
 }
 
 processDumps()
@@ -1267,7 +1289,7 @@ processDumps()
             f="$f1"
         fi
         if [ "$DUMP_FLAG" == "0" ]; then
-            add_crashed_log_file "$f"
+            get_crashed_log_file "$f"
         fi
         if [ -f "$f" ]; then
             #last modification date of a core dump, to ease refusing of already uploaded core dumps on a server side
@@ -1352,18 +1374,7 @@ processDumps()
                         test -f $LOG_PATH/receiver.log && files="$files $LOG_PATH/receiver.log"
                         test -f $LOG_PATH/receiver.log.1 && files="$files $LOG_PATH/receiver.log.1"
                     fi
-                    while read line
-                    do
-                        if [ ! -z "$line" -a -f "$line" ]; then
-                            logModTS=`getLastModifiedTimeOfFile $line`
-                            checkParameter logModTS
-                            process_log=`setLogFile $sha1 $MAC $logModTS $boxType $modNum $line`
-                            tail -n ${line_count} $line > $process_log
-                            logMessage "Adding File: $process_log to minidump tarball"
-                            files="$files $process_log"
-                        fi
-                    done < $LOG_FILES
-                    rm -rf $LOG_FILES
+                    add_crashed_log_file $files
                     nice -n 19 tar -zcvf $files 2>&1 | logStdout
                     if [ $? -eq 0 ]; then
                         logMessage "Success Compressing the files $files"
@@ -1371,9 +1382,11 @@ processDumps()
                         logMessage "Compression Failed."
                     fi
                 elif [ "$DEVICE_TYPE" = "broadband" ]; then
-                    nice -n 19 tar -zcvf $tgzFile $dumpName $VERSION_FILE $CORE_LOG 2>&1 | logStdout
+                    files="$tgzFile $dumpName $VERSION_FILE $CORE_LOG"
+                    add_crashed_log_file $files
+                    nice -n 19 tar -zcvf $files 2>&1 | logStdout
                     if [ $? -eq 0 ]; then
-                        logMessage "Success Compressing the files, $tgzFile $dumpName $VERSION_FILE $CORE_LOG"
+                        logMessage "Success Compressing the files, $files"
                     else
                         logMessage "Compression Failed ."
                     fi
@@ -1419,10 +1432,10 @@ processDumps()
                     logMessage "Removing $cefLogFile"
                     rm $cefLogFile
                 fi
-                if [ "$DUMP_FLAG" == "0" ]; then
-                    process_logs=`find $WORKING_DIR \( -iname "*.log" -o -iname "*.txt" \) -type f -print -exec rm -f {} \;`
-                    logMessage "Removing ${process_logs}"
-                fi
+            fi
+            if [ "$DUMP_FLAG" == "0" ]; then
+                process_logs=`find $WORKING_DIR \( -iname "*.log*" -o -iname "*.txt*" \) -type f -print -exec rm -f {} \;`
+                logMessage "Removing ${process_logs}"
             fi
         fi
     done
