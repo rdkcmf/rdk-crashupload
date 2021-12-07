@@ -64,9 +64,8 @@ get_interface_value()
 {
    output=""
    if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ]; then
-       #FEATURE_RDKB_WAN_MANAGER
-       wan_if=`syscfg get wan_physical_ifname`
-       output=$wan_if
+       #Set empty value for output so that interface name will be calculated from get_core_value 
+       output=""
    else   
        if [ -f /tmp/if_info ];then
              output=`cat /tmp/if_info`
