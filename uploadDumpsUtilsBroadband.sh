@@ -150,38 +150,24 @@ network_commn_status()
            if [ "$INTERFACE" != "unknown" ];then
              IF_STATE=`sysevent get wan-status`
              if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ] || [ "x$BOX_TYPE" = "xSE501" ]; then
-                CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
-                if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
-                   EROUTER_IP=`ifconfig $HUB4_IPV6_INTERFACE | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
-                   # Ensure the IP address here
-                   while [ "$EROUTER_IP" == "" ]; do
-                     sleep 5
-                      EROUTER_IP=`ifconfig $HUB4_IPV6_INTERFACE | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
-                   done
-                   # Ensure both IP address and interface status
-                   while [ "$IF_STATE" != "started" ] && [ "$EROUTER_IP" != "" ];do
-                         sleep 5
-                         IF_STATE=`sysevent get wan-status`
-                         if [ ! "$EROUTER_IP" ];then
-                         EROUTER_IP=`ifconfig $HUB4_IPV6_INTERFACE | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
-                         fi
-                   done
+                 CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
+                 if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
+                     EROUTER_IP=`ifconfig $HUB4_IPV6_INTERFACE | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
                  else
                      EROUTER_IP=`ifconfig $INTERFACE | grep "inet addr" | cut -d ":" -f2 | cut -d " " -f1`
-                     # Ensure the IP address here
-                     while [ "$EROUTER_IP" == "" ]; do
-                           sleep 5
-                           EROUTER_IP=`ifconfig $INTERFACE | grep "inet addr" | cut -d ":" -f2 | cut -d " " -f1`
-                     done
-                     # Ensure both IP address and interface status
-                     while [ "$IF_STATE" != "started" ] && [ "$EROUTER_IP" != "" ];do
-                           sleep 5
-                           IF_STATE=`sysevent get wan-status`
-                           if [ ! "$EROUTER_IP" ];then
-                              EROUTER_IP=`ifconfig $INTERFACE | grep "inet addr" | cut -d ":" -f2 | cut -d " " -f1`
-                           fi
-                     done
-                fi
+                 fi
+                 # Ensure both IP address and interface status
+                 while [ "$EROUTER_IP" == "" ] || [ "$IF_STATE" != "started" ]; do
+                     sleep 5
+                     IF_STATE=`sysevent get wan-status`
+                     CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
+                     MAPT_CONFIG=`sysevent get mapt_config_flag`
+                     if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] && [ "xset" = "x$MAPT_CONFIG" ] ; then
+                         EROUTER_IP=`ifconfig $HUB4_IPV6_INTERFACE | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
+                     else
+                         EROUTER_IP=`ifconfig $INTERFACE | grep "inet addr" | cut -d ":" -f2 | cut -d " " -f1`
+                     fi
+                 done
             else
              EROUTER_IP=`ifconfig $INTERFACE | grep "inet addr" | cut -d ":" -f2 | cut -d " " -f1`
              # Ensure the IP address here
