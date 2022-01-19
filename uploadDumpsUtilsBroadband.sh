@@ -53,8 +53,8 @@ get_core_value()
            if [ $processor ] && [ $processor -gt 0 ] ;then
                   core="ARM"
            fi
-           if [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ];then
-                  #ADA SR300,SE501,SR213 - Handle aarch64
+           if [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "WNXL11BWL" ];then
+                  #ADA SR300,SR213,SE501,xle - Handle aarch64
                   processor=`lscpu | grep aarch64| wc -l`
                   if [ $processor ] && [ $processor -gt 0 ] ;then
                       core="ARM"
@@ -70,7 +70,7 @@ get_core_value()
 get_interface_value()
 {
    output=""
-   if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ]; then
+   if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] ; then
        #Set empty value for output so that interface name will be calculated from get_core_value 
        output=""
    else   
@@ -124,7 +124,7 @@ get_mac_address()
            #if we dont have mac on interface, use sysevent
            #mac from sysevent is irrespective of connection types(adsl(atm0),vdsl(erouter0),wanoe(erouter0))
            if [ -z "$mac" ]; then
-                if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ]; then
+                if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ]; then
                     mac=$(sysevent get eth_wan_mac | sed 's/://g')
                 fi
            fi
@@ -156,7 +156,7 @@ network_commn_status()
            INTERFACE=`get_interface_value`
            if [ "$INTERFACE" != "unknown" ];then
              IF_STATE=`sysevent get wan-status`
-             if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ] || [ "x$BOX_TYPE" = "xSE501" ] || [ "x$BOX_TYPE" = "xSR213" ]; then
+             if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ] || [ "x$BOX_TYPE" = "xSE501" ] || [ "x$BOX_TYPE" = "xSR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ]; then
                  CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
                  if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
                      EROUTER_IP=`ifconfig $HUB4_IPV6_INTERFACE | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
