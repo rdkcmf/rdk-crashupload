@@ -21,6 +21,13 @@
 CMINTERFACE="wan0"
 WANINTERFACE="erouter0"
  
+if [ -f /etc/waninfo.sh ]; then
+    . /etc/waninfo.sh
+    WANINTERFACE=$(getWanInterfaceName)
+else
+    WANINTERFACE="erouter0"
+fi
+
 getLastModifiedTimeOfFile()
 {
     if [ -f $1 ] ; then

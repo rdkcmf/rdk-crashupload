@@ -22,7 +22,14 @@ if [ -f /lib/rdk/utils.sh ];then
      . /lib/rdk/utils.sh
 fi
 CMINTERFACE="wan0"
-INTERFACE="erouter0"
+
+if [ -f /etc/waninfo.sh ]; then
+    . /etc/waninfo.sh
+    INTERFACE=$(getWanInterfaceName)
+else
+    INTERFACE="erouter0"
+fi
+
  
 getLastModifiedTimeOfFile()
 {

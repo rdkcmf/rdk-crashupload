@@ -72,6 +72,11 @@ else
 	fi
 fi
 
+if [ -f /etc/waninfo.sh ]; then
+    . /etc/waninfo.sh
+    ARM_INTERFACE=$(getWanInterfaceName)
+fi
+
 # export PATH and LD_LIBRARY_PATH for curl
 export PATH=$PATH:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin
 export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
@@ -1477,6 +1482,9 @@ processDumps()
             status=$?
             while [ $count -le 3 ]
             do
+                if [ -f /etc/waninfo.sh ]; then
+                    ARM_INTERFACE=$(getWanInterfaceName)
+                fi
                 # S3 amazon fail over recovery
                 count=`expr $count + 1`
                 if [ $status -ne 0 ];then
