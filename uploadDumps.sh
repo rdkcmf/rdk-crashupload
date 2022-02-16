@@ -45,6 +45,10 @@ if [ -f $RDK_PATH/utils.sh ];then
      . $RDK_PATH/utils.sh
 fi
 
+if [ -f $RDK_PATH/mtlsUtils.sh ]; then
+     . $RDK_PATH/mtlsUtils.sh
+fi
+
 if [ -f /lib/rdk/uploadDumpsUtils.sh ];then
      . /lib/rdk/uploadDumpsUtils.sh
 fi
@@ -905,10 +909,30 @@ uploadToS3()
         S3_MD5SUM="$(openssl md5 -binary < $updatedfile | openssl enc -base64)"
         URLENCODE_STRING="--data-urlencode \"md5=$S3_MD5SUM\""
     fi
-
+    mTlsCrashdumpUpload="false"
+    bootstrapSsrUrl=""
+    if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
+       mTlsCrashdumpUpload=$(tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.MTLS.mTlsCrashdumpUpload.Enable 2>&1 > /dev/null)
+       bootstrapSsrUrl=$(tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Bootstrap.SsrUrl 2>&1 > /dev/null)
+       logMessage "mTlsCrashdumpUpload:$mTlsCrashdumpUpload"
+    fi
+    if [ "$bootstrapSsrUrl" ]; then
+       S3_AMAZON_SIGNING_URL="$bootstrapSsrUrl/cgi-bin/upload_dump.cgi"
+       logMessage "Overriding the S3 Amazon SIgning URL: $S3_AMAZON_SIGNING_URL"
+    fi
+    #Setting MTLS Creds for S3 Upload
+    if [ "$FORCE_MTLS" = "true" ] || [ "$mTlsCrashdumpUpload" = "true" ]; then
+       logMessage "MTLS prefered for CrashdumpUpload"
+       CERT=`getMtlsCreds uploadDumps.sh /etc/ssl/certs/cpe-clnt.xcal.tv.cert.pem /tmp/uydrgopwxyem`
+    else
+       CERT=""
+    fi
+    if [ ! -f /etc/ssl/certs/cpe-clnt.xcal.tv.cert.pem ]; then
+       logMessage "Using Xpki cert for CrashdumpUpload"
+    fi
     if [ ! -z "$IF_OPTION" ]; then
         if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
-            CURL_CMD="curl -s $TLS --interface $IF_OPTION --cert-status -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
+            CURL_CMD="curl $CERT -s $TLS --interface $IF_OPTION --cert-status -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
@@ -916,7 +940,7 @@ uploadToS3()
                                              $URLENCODE_STRING\
                                              "$S3_AMAZON_SIGNING_URL""
         else
-            CURL_CMD="curl -s $TLS --interface $IF_OPTION -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
+            CURL_CMD="curl $CERT -s $TLS --interface $IF_OPTION -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
@@ -925,48 +949,13 @@ uploadToS3()
                                              "$S3_AMAZON_SIGNING_URL""
         fi
     else
-        mTlsCrashdumpUpload="false"
-        bootstrapSsrUrl=""
-        if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
-            mTlsCrashdumpUpload=$(tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.MTLS.mTlsCrashdumpUpload.Enable 2>&1 > /dev/null)
-            bootstrapSsrUrl=$(tr181Set Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Bootstrap.SsrUrl 2>&1 > /dev/null)
-        fi
-        if [ "$bootstrapSsrUrl" ]; then
-            S3_AMAZON_SIGNING_URL="$bootstrapSsrUrl/cgi-bin/upload_dump.cgi"
-            logMessage "Overriding the S3 Amazon SIgning URL: $S3_AMAZON_SIGNING_URL"
-        fi
-        if [ "$FORCE_MTLS" = "true" ]; then
-            logMessage "MTLS prefered for signing, Force CrashdumpUpload to true"
-            mTlsCrashdumpUpload=true;
-        fi
-        if [ "$mTlsCrashdumpUpload" = "true" ]; then
-            logMessage "Crash Upload requires Mutual Authentication for signing"
-            if [ -d /etc/ssl/certs  ]; then
-                if [ ! -f /usr/bin/GetConfigFile ]; then
-                    logMessage "Error: GetConfigFile Not Found"
-                    resp=1
-                    return $resp
-                fi
-                ID="/tmp/uydrgopwxyem"
-                GetConfigFile $ID
-            fi
-            CURL_CMD="curl --key /tmp/uydrgopwxyem --cert /etc/ssl/certs/cpe-clnt.xcal.tv.cert.pem -s $TLS -o /tmp/signed_url -w \"%{http_code}\"\
-                --data-urlencode "filename=\"$updatedfile\""\
+       CURL_CMD="curl $CERT -s $TLS -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
                 --data-urlencode "firmwareVersion=$CurrentVersion"\
                 --data-urlencode "env=$BUILD_TYPE"\
                 --data-urlencode "model=$modNum"\
                 --data-urlencode "type=$DUMP_NAME" \
                 $URLENCODE_STRING\
                 "$S3_AMAZON_SIGNING_URL""
-        else
-            CURL_CMD="curl -s $TLS -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
-                --data-urlencode "firmwareVersion=$CurrentVersion"\
-                --data-urlencode "env=$BUILD_TYPE"\
-                --data-urlencode "model=$modNum"\
-                --data-urlencode "type=$DUMP_NAME" \
-                $URLENCODE_STRING\
-                "$S3_AMAZON_SIGNING_URL""
-        fi
 
         if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
             CURL_CMD="$CURL_CMD --cert-status"
@@ -974,11 +963,6 @@ uploadToS3()
     fi
     status=`eval $CURL_CMD > $HTTP_CODE`
     local ec=$?
-    if [ -f /tmp/uydrgopwxyem ]; then
-        rm -rf /tmp/uydrgopwxyem
-    else
-        logMessage "MTLS not enabled"
-    fi
     IFS=$OIFS
     logMessage "[$0]: Execution Status: $ec, HTTP SIGN URL Response: `cat $HTTP_CODE`"
     if [ $ec -eq 0 ]; then
@@ -1005,50 +989,28 @@ uploadToS3()
                 core_output=`get_core_value`
                 if [ "$core_output" = "ARM" ];then
                     if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
-                        CURL_CMD="curl -v -fgL --tlsv1.2 --cert-status --interface $ARM_INTERFACE -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+                        CURL_CMD="curl $CERT -v -fgL --tlsv1.2 --cert-status --interface $ARM_INTERFACE -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
                     else
-                        CURL_CMD="curl -v -fgL --tlsv1.2 --interface $ARM_INTERFACE -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+                        CURL_CMD="curl $CERT -v -fgL --tlsv1.2 --interface $ARM_INTERFACE -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
                     fi
                 else
                     if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
-                        CURL_CMD="curl -v -fgL --tlsv1.2 --cert-status -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+                        CURL_CMD="curl $CERT -v -fgL --tlsv1.2 --cert-status -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
                     else
-                        CURL_CMD="curl -v -fgL --tlsv1.2 -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
+                        CURL_CMD="curl $CERT -v -fgL --tlsv1.2 -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
                     fi
                 fi
             else
-                if [ "$FORCE_MTLS" = "true" ]; then
-                    logMessage "MTLS prefered, Force CrashdumpUpload to true"
-                    mTlsCrashdumpUpload=true;
-                fi
-                if [ "$mTlsCrashdumpUpload" = "true" ]; then
-                    logMessage "Crash Upload requires Mutual Authentication"
-                    if [ -d /etc/ssl/certs ]; then
-                        if [ ! -f /usr/bin/GetConfigFile ]; then
-                            logMessage "Error: GetConfigFile Not Found"
-                            resp=1
-                            return $resp
-                        fi
-                        ID="/tmp/uydrgopwxyem"
-                        GetConfigFile $ID
-                    fi
-                    CURL_CMD="curl --key /tmp/uydrgopwxyem --cert /etc/ssl/certs/cpe-clnt.xcal.tv.cert.pem -v -fgL $TLS -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
-                else
-                    CURL_CMD="curl -v -fgL $TLS -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
-                fi
+                CURL_CMD="curl $CERT -v -fgL $TLS -T \"$updatedfile\" -w \"%{http_code}\" $S3_URL"
                 if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
                     CURL_CMD=$CURL_CMD --cert-status
                 fi
             fi
             CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/AWSAccessKeyId=.*Signature=.*&//g;s/-H .*https/https/g"`
-            logMessage "URL_CMD: $CURL_REMOVE_HEADER"
+            CURL_REMOVE_CERT_KEYS=`echo $CURL_REMOVE_HEADER |sed 's/devicecert_1.*-v/devicecert_1.pk12<masked> -v/' |sed 's/staticXpkiCrt.*-v/staticXpkiCrt.pk12<masked> -v/'`
+            logMessage "URL_CMD: $CURL_REMOVE_CERT_KEYS"
             result= eval $CURL_CMD > $HTTP_CODE
             ec=$?
-            if [ -f /tmp/uydrgopwxyem ]; then
-                rm -rf /tmp/uydrgopwxyem
-            else
-                logMessage "MTLS not enabled"
-            fi
             rm /tmp/signed_url
             logMessage "Execution Status:$ec HTTP Response code: `cat $HTTP_CODE` "
         fi
