@@ -1122,20 +1122,16 @@ processDumps()
                     logFileCopy 0
                     dumpName=`setLogFile $sha1 $MAC $CRASHTS $boxType $modNum $f`
                 fi
-		if [ "$SEC_DUMP" = "true" ]; then
-			if [ "${#dumpName}" -ge "135" ]; then
-			#Removing the HEADER of the corefile due to ecryptfs limitation as file can't be open when it exceeds 140 characters.
-			dumpName="${dumpName#*_}"
-			fi
+		if [ "${#dumpName}" -ge "135" ]; then
+		     #Removing the HEADER of the corefile due to ecryptfs limitation as file can't be open when it exceeds 140 characters.
+		     dumpName="${dumpName#*_}"
 		fi
                 tgzFile=$dumpName".core.tgz"
             else
                 dumpName=`setLogFile $sha1 $MAC $CRASHTS $boxType $modNum $f`
-		if [ "$SEC_DUMP" = "true" ]; then
-			if [ "${#dumpName}" -ge "135" ]; then
-			#Removing the HEADER of the corefile due to ecryptfs limitation as file can't be open when it exceeds 140 characters.
-			dumpName="${dumpName#*_}"
-			fi
+		if [ "${#dumpName}" -ge "135" ]; then
+		     #Removing the HEADER of the corefile due to ecryptfs limitation as file can't be open when it exceeds 140 characters.
+		     dumpName="${dumpName#*_}"
 		fi
                 logFileCopy 0
                 tgzFile=$dumpName".tgz"
