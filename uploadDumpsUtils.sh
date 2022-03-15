@@ -43,7 +43,7 @@ Timestamp()
 getMacAddressOnly()
 {
      if [ "$DEVICE_TYPE" = "broadband" ];then
-         if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ]; then
+         if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ]; then
              #FEATURE_RDKB_WAN_MANAGER
              wan_if=`syscfg get wan_physical_ifname`
              mac=`cat /sys/class/net/$wan_if/address | tr '[a-f]' '[A-F]' `
@@ -66,7 +66,7 @@ getSHA1()
 # IP address of the machine
 getIPAddress()
 {
-if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ] || [ "x$BOX_TYPE" = "xSE501" ]; then
+if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ] || [ "x$BOX_TYPE" = "xSE501" ] || [ "x$BOX_TYPE" = "xSR213" ]; then
     CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
     if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
             wanIP=`ifconfig $HUB4_IPV6_INTERFACE | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
@@ -99,7 +99,7 @@ getMacAddress()
 getErouterMacAddress()
 {
     if [ "$DEVICE_TYPE" = "broadband" ];then
-         if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ]; then
+         if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ]; then
             #FEATURE_RDKB_WAN_MANAGER
             wan_if=`syscfg get wan_physical_ifname`
             erouterMac=`cat /sys/class/net/$wan_if/address | tr '[a-f]' '[A-F]' `
