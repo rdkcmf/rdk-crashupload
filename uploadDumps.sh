@@ -920,6 +920,10 @@ uploadToS3()
        S3_AMAZON_SIGNING_URL="$bootstrapSsrUrl/cgi-bin/upload_dump.cgi"
        logMessage "Overriding the S3 Amazon SIgning URL: $S3_AMAZON_SIGNING_URL"
     fi
+    if [ "$DEVICE_TYPE" = "broadband" ]; then
+       mTlsCrashdumpUpload=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.MTLS.mTlsCrashdumpUpload.Enable| grep value | cut -d ":" -f 3 | tr -d ' '`
+       logMessage "mTlsCrashdumpUpload:$mTlsCrashdumpUpload"
+    fi
     #Setting MTLS Creds for S3 Upload
     if [ "$FORCE_MTLS" = "true" ] || [ "$mTlsCrashdumpUpload" = "true" ]; then
        logMessage "MTLS prefered for CrashdumpUpload"
