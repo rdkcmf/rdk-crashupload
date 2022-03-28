@@ -435,6 +435,7 @@ else
     logMessage "starting minidump processing"
     if [ "$DEVICE_TYPE" = "broadband" ];then
         WORKING_DIR="/minidumps"
+        MINIDUMPS_PATH="/minidumps"
     else
         WORKING_DIR="$MINIDUMPS_PATH"
     fi
@@ -689,59 +690,29 @@ fi
 
 if [ "$DEVICE_TYPE" != "broadband" ];then
     # wait the internet connection once after boot
-    NETWORK_TESTED="/tmp/internet_tested"
+    NETWORK_TESTED="/tmp/route_available"
     NETWORK_TEST_ITERATIONS=18
     NETWORK_TEST_DELAY=10
     SYSTEM_TIME_TEST_ITERATIONS=10
     SYSTEM_TIME_TEST_DELAY=1
     SYSTEM_TIME_TESTED="/tmp/stt_received"
-    IPV4_FILE="/tmp/estb_ipv4"
-    IPV6_FILE="/tmp/estb_ipv6"
     counter=1
-
-    if [ ! -f "$NETWORK_TESTED" ]; then
-        while [ $counter -le $NETWORK_TEST_ITERATIONS ]; do
-            logMessage "Testing the internet connection, iteration $counter"
-
-            estbIp=`getIPAddress`
-            if [ "X$estbIp" = "X" ];then
-                logMessage "Waiting the IP."
-                sleep $NETWORK_TEST_DELAY
-            else
-                logMessage "Current IP address: '$estbIp', default IP: '$DEFAULT_IP'"
-                if [ "$IPV6_ENABLED" = "true" ]; then
-                    if [ ! -f "$IPV4_FILE" ] && [ ! -f "$IPV6_FILE" ]; then
-                        logMessage "Waiting the IPv6."
-                        sleep $NETWORK_TEST_DELAY
-                    elif [ "Y$estbIp" = "Y$DEFAULT_IP" ] && [ -f "$IPV4_FILE" ]; then
-                        logMessage "Waiting the IPv6."
-                        sleep $NETWORK_TEST_DELAY
-                    else
-                        logMessage "Internet is up."
-                        counter=$(( NETWORK_TEST_ITERATIONS + 1 ))
-                    fi
-                else
-                    if [ "Y$estbIp" = "Y$DEFAULT_IP" ]; then
-                        logMessage "Waiting the IPv4."
-                        sleep $NETWORK_TEST_DELAY
-                    else
-                        logMessage "Internet is up."
-                        counter=$(( NETWORK_TEST_ITERATIONS + 1 ))
-                    fi
-                fi
-            fi
-
-            if [ $counter = $NETWORK_TEST_ITERATIONS ]; then
-                 logMessage "Continue without IP."
-            fi
-
+    NoNetwork=0
+    while [ $counter -le $NETWORK_TEST_ITERATIONS ]; do
+        logMessage "Check Network status count $counter"
+        if [ -f $NETWORK_TESTED ]; then
+            logMessage "Route is Available break the loop"
+            break
+        else
+            logMessage "Route is not available sleep for $NETWORK_TEST_DELAY"
+            sleep $NETWORK_TEST_DELAY
             counter=$(( counter + 1 ))
-        done
-        touch $NETWORK_TESTED
-    else
-        logMessage "The network has already been tested"
+        fi
+    done
+    if [ ! -f $NETWORK_TESTED ]; then
+        logMessage "Route is NOT Available, tar dump and save it as MAX WAIT has been reached"
+        NoNetwork=1
     fi
-
     logMessage "IP acquistion completed, Testing the system time is received"
     if [ ! -f "$SYSTEM_TIME_TESTED" ]; then
         while [ $counter -le $SYSTEM_TIME_TEST_ITERATIONS ]; do
@@ -849,6 +820,18 @@ codebigUpload()
     fi
     eval $CURL_CMD > $HTTP_CODE
     TLSRet=$?
+}
+
+saveDump()
+{
+    count=`ls $MINIDUMPS_PATH | grep ".dmp.tgz" | wc -l`
+    while [ $count -gt 5 ]; do
+         olddumps=`ls -t $MINIDUMPS_PATH | tail -1`
+         logMessage "Removing old dump $olddumps"
+         rm -rf $MINIDUMPS_PATH/$olddumps
+         count=`ls $MINIDUMPS_PATH | wc -l`
+     done
+     logMessage "Total pending Minidumps : $count"
 }
 
 
@@ -1443,7 +1426,13 @@ processDumps()
             fi
             S3_FILENAME=`echo ${f##*/}`
             count=1
-
+            
+            # check the network
+            if [ "$DEVICE_TYPE" != "broadband" ] && [ "$DUMP_NAME" = "minidump" -a $NoNetwork -eq 1 ]; then
+                logMessage "Network is not available skipping upload"
+                saveDump
+                return
+            fi
             # upload to S3 amazon first
             logMessage "[$0]: $count: $DUMP_NAME S3 Upload "
             uploadToS3 "`echo $S3_FILENAME`" 
@@ -1471,8 +1460,13 @@ processDumps()
             done
             if [ $status -ne 0 ];then
                   logMessage "[$0]: S3 Amazon Upload of $DUMP_NAME Failed..!"
-                  logMessage "Removing file $S3_FILENAME"
-                  rm -f $S3_FILENAME
+                  if [  "$DUMP_NAME" == "minidump" ]; then
+                      logMessage "Check and save the dump $S3_FILENAME"
+                      saveDump
+                  else
+                      logMessage "Removing file $S3_FILENAME"
+                      rm -f $S3_FILENAME
+                  fi
                   exit 1
             else
                   echo "[$0]: Execution Status: $status, S3 Amazon Upload of $DUMP_NAME Success"
