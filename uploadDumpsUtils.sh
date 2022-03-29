@@ -20,13 +20,14 @@
 
 CMINTERFACE="wan0"
 WANINTERFACE="erouter0"
- 
+
 if [ -f /etc/waninfo.sh ]; then
     . /etc/waninfo.sh
     WANINTERFACE=$(getWanInterfaceName)
 else
     WANINTERFACE="erouter0"
 fi
+wan_interface=$(getWanMacInterfaceName)
 
 getLastModifiedTimeOfFile()
 {
@@ -48,10 +49,10 @@ getMacAddressOnly()
              wan_if=`syscfg get wan_physical_ifname`
              mac=`cat /sys/class/net/$wan_if/address | tr '[a-f]' '[A-F]' `
          else	
-             mac=`ifconfig $WANINTERFACE | grep HWaddr | cut -d " " -f7 | sed 's/://g'`
+             mac=`ifconfig $wan_interface | grep HWaddr | cut -d " " -f7 | sed 's/://g'`
          fi
      else	
-         mac=`ifconfig $WANINTERFACE | grep HWaddr | cut -d " " -f7 | sed 's/://g'`
+         mac=`ifconfig $wan_interface | grep HWaddr | cut -d " " -f7 | sed 's/://g'`
      fi
      echo $mac
 }
@@ -104,10 +105,10 @@ getErouterMacAddress()
             wan_if=`syscfg get wan_physical_ifname`
             erouterMac=`cat /sys/class/net/$wan_if/address | tr '[a-f]' '[A-F]' `
         else	
-            erouterMac=`ifconfig $WANINTERFACE | grep HWaddr | cut -d " " -f7`
+            erouterMac=`ifconfig $wan_interface | grep HWaddr | cut -d " " -f7`
         fi
     else	
-        erouterMac=`ifconfig $WANINTERFACE | grep HWaddr | cut -d " " -f7`
+        erouterMac=`ifconfig $wan_interface | grep HWaddr | cut -d " " -f7`
     fi
     echo $erouterMac
 }
