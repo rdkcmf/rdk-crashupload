@@ -858,7 +858,7 @@ uploadToS3()
     local file=$(basename $1)
     #logMessage "uploadToS3 '$(readlink $1)'"
     logMessage "uploadToS3 $1"
-    if [ $file = mac* ]; then
+    if [ "${file:0:3}" = "mac" ]; then
     # Update upload time to corefile from uploadToS3 function.
     corefiletime=`echo $file | awk -F '_' '{print substr($2,4)}'`
     logMessage "$DUMP_NAME file timestamp received to uploadToS3: $corefiletime"
