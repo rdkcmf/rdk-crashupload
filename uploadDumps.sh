@@ -930,9 +930,11 @@ uploadToS3()
     if [ ! -f /etc/ssl/certs/cpe-clnt.xcal.tv.cert.pem ]; then
        logMessage "Using Xpki cert for CrashdumpUpload"
     fi
+
+    signed_url_file="/tmp/signed_url_$$"
     if [ ! -z "$IF_OPTION" ]; then
         if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
-            CURL_CMD="curl $CERT -s $TLS --interface $IF_OPTION --cert-status -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
+            CURL_CMD="curl $CERT -s $TLS --interface $IF_OPTION --cert-status -o $signed_url_file -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
@@ -940,7 +942,7 @@ uploadToS3()
                                              $URLENCODE_STRING\
                                              "$S3_AMAZON_SIGNING_URL""
         else
-            CURL_CMD="curl $CERT -s $TLS --interface $IF_OPTION -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
+            CURL_CMD="curl $CERT -s $TLS --interface $IF_OPTION -o $signed_url_file -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
                                              --data-urlencode "firmwareVersion=$CurrentVersion"\
                                              --data-urlencode "env=$BUILD_TYPE"\
                                              --data-urlencode "model=$modNum"\
@@ -949,7 +951,7 @@ uploadToS3()
                                              "$S3_AMAZON_SIGNING_URL""
         fi
     else
-       CURL_CMD="curl $CERT -s $TLS -o /tmp/signed_url -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
+       CURL_CMD="curl $CERT -s $TLS -o $signed_url_file -w \"%{http_code}\" --data-urlencode "filename=\"$updatedfile\""\
                 --data-urlencode "firmwareVersion=$CurrentVersion"\
                 --data-urlencode "env=$BUILD_TYPE"\
                 --data-urlencode "model=$modNum"\
@@ -980,7 +982,7 @@ uploadToS3()
             logMessage "Safe params: $validDate -- $auth -- $remotePath"
             tlsMessage="with TLS1.2"
             logMessage "Attempting TLS1.2 connection to Amazon S3"
-            S3_URL=$(cat /tmp/signed_url)
+            S3_URL=$(cat $signed_url_file)
 
             if [ "$encryptionEnable" != "true" ]; then
                 S3_URL=\"$S3_URL\"
@@ -1011,7 +1013,7 @@ uploadToS3()
             logMessage "URL_CMD: $CURL_REMOVE_CERT_KEYS"
             result= eval $CURL_CMD > $HTTP_CODE
             ec=$?
-            rm /tmp/signed_url
+            rm $signed_url_file
             logMessage "Execution Status:$ec HTTP Response code: `cat $HTTP_CODE` "
         fi
     fi
