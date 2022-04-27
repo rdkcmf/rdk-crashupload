@@ -927,6 +927,11 @@ uploadToS3()
            mTlsCrashdumpUpload=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.MTLS.mTlsCrashdumpUpload.Enable| grep value | cut -d ":" -f 3 | tr -d ' '`
        fi
        logMessage "mTlsCrashdumpUpload:$mTlsCrashdumpUpload"
+       URL=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CrashUpload.S3SigningUrl |grep value | awk '{print $5}'`
+       if [ "$URL" ] && [ "$mTlsCrashdumpUpload" = "true" ]; then
+               S3_AMAZON_SIGNING_URL="$URL"
+               logMessage "Overriding the S3 Amazon SIgning URL: $S3_AMAZON_SIGNING_URL"
+       fi
     fi
     #Setting MTLS Creds for S3 Upload
     if [ "$FORCE_MTLS" = "true" ] || [ "$mTlsCrashdumpUpload" = "true" ]; then
