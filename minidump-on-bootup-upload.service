@@ -25,3 +25,4 @@ Requires=network-online.target
 [Service]
 #Environment="TS="
 ExecStart=/bin/sh -c '/lib/rdk/uploadDumps.sh "" 0 '
+ExecStop=/bin/sh -c 'x=`/bin/pidof uploadDumps.sh` ; if [ $? -eq 0 ] ; then /bin/kill -9 $x; fi '
