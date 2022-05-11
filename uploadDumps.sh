@@ -874,6 +874,17 @@ uploadToS3()
         if [ -z "$S3_AMAZON_SIGNING_URL" ];then
             . /etc/device.properties
         fi
+    elif [ "$DEVICE_TYPE" = "broadband" ]; then
+        dml_url="$(dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.CrashPortal | grep string | cut -d":" -f3- | cut -d" " -f2- | tr -d ' ')"
+        if [ "$dml_url" != "" ]
+        then
+           S3_AMAZON_SIGNING_URL=$dml_url
+        else
+           if [ "$PARTNER_ID" = "sky-uk" ]
+           then
+               S3_AMAZON_SIGNING_URL="$S3_AMAZON_SIGNING_URL_EU"
+           fi
+        fi
     fi
     
     logMessage "[$0]: S3 Amazon Signing URL: $S3_AMAZON_SIGNING_URL"   
@@ -904,7 +915,12 @@ uploadToS3()
        logMessage "Overriding the S3 Amazon SIgning URL: $S3_AMAZON_SIGNING_URL"
     fi
     if [ "$DEVICE_TYPE" = "broadband" ]; then
-       mTlsCrashdumpUpload=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.MTLS.mTlsCrashdumpUpload.Enable| grep value | cut -d ":" -f 3 | tr -d ' '`
+       if [ "$partnerId" = "sky-uk" ]
+       then
+           mTlsCrashdumpUpload="true"
+       else
+           mTlsCrashdumpUpload=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.MTLS.mTlsCrashdumpUpload.Enable| grep value | cut -d ":" -f 3 | tr -d ' '`
+       fi
        logMessage "mTlsCrashdumpUpload:$mTlsCrashdumpUpload"
     fi
     #Setting MTLS Creds for S3 Upload
