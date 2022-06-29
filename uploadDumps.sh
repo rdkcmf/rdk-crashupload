@@ -41,6 +41,11 @@ else
      echo "Missing generic configuration file: /etc/include.properties..!"
 fi
 
+if [ -f /lib/rdk/getpartnerid.sh ]; then
+    source /lib/rdk/getpartnerid.sh
+    partnerId="$(getPartnerId)"
+fi
+
 if [ -f $RDK_PATH/utils.sh ];then
      . $RDK_PATH/utils.sh
 fi
@@ -840,7 +845,7 @@ uploadToS3()
     URLENCODE_STRING=""
     local file=$(basename $1)
     #logMessage "uploadToS3 '$(readlink $1)'"
-    logMessage "uploadToS3 $1"
+    logMessage "uploadToS3 $1 and partnerId=$partnerId"
     if [ "${file:0:3}" = "mac" ]; then
     # Update upload time to corefile from uploadToS3 function.
     corefiletime=`echo $file | awk -F '_' '{print substr($2,4)}'`
@@ -880,7 +885,7 @@ uploadToS3()
         then
            S3_AMAZON_SIGNING_URL=$dml_url
         else
-           if [ "$PARTNER_ID" = "sky-uk" ]
+           if [ "$partnerId" = "sky-uk" ]
            then
                S3_AMAZON_SIGNING_URL="$S3_AMAZON_SIGNING_URL_EU"
            fi
