@@ -114,9 +114,10 @@ directory_watcher(const char *const directory,
      }
      while (1)
      {
-          char buffer[sizeof(struct inotify_event) + NAME_MAX + 1] ALIGNAS(struct inotify_event);
+          char buffer[sizeof(struct inotify_event) + NAME_MAX + 1] ALIGNAS(struct inotify_event) = {0};
           const struct inotify_event * event_ptr;
-          ssize_t count = read(notifyfd, buffer, sizeof(buffer));
+          /* coverity fix CID: 136730 */
+          ssize_t count = read(notifyfd, buffer, (sizeof(buffer) - 1));
           if (count < 0)
           {
              if (interrupted)
