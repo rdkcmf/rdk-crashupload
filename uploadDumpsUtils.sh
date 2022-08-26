@@ -49,7 +49,7 @@ getMacAddressOnly()
              wan_if=`syscfg get wan_physical_ifname`
              mac=`cat /sys/class/net/$wan_if/address | tr '[a-f]' '[A-F]' `
          else	
-             mac=`ifconfig $wan_interface | grep HWaddr | cut -d " " -f7 | sed 's/://g'`
+             mac=`cat /sys/class/net/$wan_interface/address | sed 's/://g' | tr '[a-f]' '[A-F]' `
          fi
      else	
          mac=`ifconfig $wan_interface | grep HWaddr | cut -d " " -f7 | sed 's/://g'`
