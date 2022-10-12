@@ -844,30 +844,42 @@ uploadToS3()
 {
     URLENCODE_STRING=""
     local file=$(basename $1)
-    #logMessage "uploadToS3 '$(readlink $1)'"
+
+    count=`find "$WORKING_DIR" -name "$file" | wc -l`
+    if [ $count -eq 0 ]; then logMessage "DEBUG_ERROR:UPLOAD_FAILED:No ${file} for uploading In Dir:${WORKING_DIR}" ; exit 0; fi
+
+    logMessage "DEBUG Original File Name : $file"
+    logMessage "DEBUG Value Required for Check : ${file:0:3}"
     logMessage "uploadToS3 $1 and partnerId=$partnerId"
+    
     if [ "${file:0:3}" = "mac" ]; then
-    # Update upload time to corefile from uploadToS3 function.
-    corefiletime=`echo $file | awk -F '_' '{print substr($2,4)}'`
-    logMessage "$DUMP_NAME file timestamp received to uploadToS3: $corefiletime"
+        # Update upload time to corefile from uploadToS3 function.
+        corefiletime=`echo $file | awk -F '_' '{print substr($2,4)}'`
+        logMessage "DEBUG $DUMP_NAME file timestamp (2,4) received to uploadToS3: $corefiletime"
     else
-    # Update upload time to corefile from uploadToS3 function.
-    corefiletime=`echo $file | awk -F '_' '{print substr($3,4)}'`
-    logMessage "$DUMP_NAME file timestamp received to uploadToS3: $corefiletime"
+        # Update upload time to corefile from uploadToS3 function.
+        corefiletime=`echo $file | awk -F '_' '{print substr($3,4)}'`
+        logMessage "DEBUG $DUMP_NAME file timestamp (3,4) received to uploadToS3: $corefiletime"
     fi
+
     uploadcurtime=`date +%Y-%m-%d-%H-%M-%S`
     logMessage "$DUMP_NAME file timestamp before upload: $uploadcurtime"
     
     updatedfile=`echo $file | sed "s/$corefiletime/$uploadcurtime/g"`
-    logMessage "$DUMP_NAME file to be uploaded: `echo $updatedfile`"
+    logMessage "DEBUG $DUMP_NAME file to be uploaded: `echo $updatedfile`"
     
     if [ -f $WORKING_DIR"/"$file ]; then
-        logMessage "Renaming the $DUMP_NAME file under $WORKING_DIR"
+        logMessage "DEBUG Renaming the $DUMP_NAME file under $WORKING_DIR"
+        logMessage "DEBUG mv $WORKING_DIR"/"$file $WORKING_DIR"/"$updatedfile"
         mv $WORKING_DIR"/"$file $WORKING_DIR"/"$updatedfile
         S3_FILENAME=$updatedfile
+        logMessage "DEBUG S3 File Name : $S3_FILENAME"
     else
         logMessage "$DUMP_NAME file: $file not found under $WORKING_DIR folder..!!!"
     fi
+    
+    count=`find "$WORKING_DIR" -name "$S3_FILENAME" | wc -l`
+    if [ $count -eq 0 ]; then logMessage "DEBUG_ERROR:UPLOAD_FAILED:No ${S3_FILENAME} for uploading In Dir:${WORKING_DIR}" ; exit 0; fi
 
     local app=${updatedfile%%.signal*}
     #get signed parameters from server
