@@ -120,7 +120,13 @@ get_mac_address()
 
            ;;
          "ARM" )
-           mac=`ifconfig $ARM_INTERFACE | grep HWaddr | cut -d " " -f7 | sed 's/://g'` 
+           if [ "$BOX_TYPE" = "WNXL11BWL" ] ; then
+             #Common logic does not work for XLE, because ifconfig has different template ouptut.
+             #Use deviceinfo for XLE.
+             mac=`deviceinfo.sh -cmac | sed 's/://g' | tr '[a-f]' '[A-F]' `
+           else
+             mac=`ifconfig $ARM_INTERFACE | grep HWaddr | cut -d " " -f7 | sed 's/://g'` 
+           fi
            #if we dont have mac on interface, use sysevent
            #mac from sysevent is irrespective of connection types(adsl(atm0),vdsl(erouter0),wanoe(erouter0))
            if [ -z "$mac" ]; then
