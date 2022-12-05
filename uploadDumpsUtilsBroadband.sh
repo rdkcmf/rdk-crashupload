@@ -120,7 +120,7 @@ get_mac_address()
 
            ;;
          "ARM" )
-           if [ "$BOX_TYPE" = "WNXL11BWL" ] ; then
+           if [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" = "HUB4" ] ; then
              #Common logic does not work for XLE, because ifconfig has different template ouptut.
              #Use deviceinfo for XLE.
              mac=`deviceinfo.sh -cmac | sed 's/://g' | tr '[a-f]' '[A-F]' `
