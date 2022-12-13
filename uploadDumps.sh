@@ -100,6 +100,8 @@ S3_FILENAME=""
 CURL_UPLOAD_TIMEOUT=45
 FOUR_EIGHTY_SECS=480
 MAX_CORE_FILES=4
+TMP_DIR_NAME=""
+OUT_FILES=""
 
 # Yocto conditionals
 TLS=""
@@ -1267,6 +1269,41 @@ add_crashed_log_file()
     rm -rf $LOG_FILES
 }
 
+copy_log_files_tmp_dir()
+{
+    TmpDirectory="/tmp/$TMP_DIR_NAME"
+    Logfiles="$@"
+    result=0
+    limit=70
+    
+    tmpDir="/tmp"
+
+    # if directory exists, find out it's size
+    if [ -d $tmpDir ]
+     then
+           usagePercentage=$(df -h '/tmp'| grep '\tmp' | awk '{print $5}')
+           usagePercentage="${usagePercentage:0:1}"
+     else
+           logMessage "path $tmpDir not found!!!"
+    fi
+   #check if directory size is greater than limit
+   if [ $usagePercentage -ge $limit ]; then
+          logMessage "Skipping copying Logs to tmp dir due to limited Memory"
+          OUT_FILES="$OUT_FILES $Logfiles"
+    else
+          logMessage "Copying Logs to tmp dir as Memory available. used size = $usagePercentage% limit = $limit%"
+          mkdir $TmpDirectory 2> /dev/null
+          cp $Logfiles $TmpDirectory 2> /dev/null
+          logMessage "Logs Copied to $TmpDirectory Temporary"
+    
+          # Updating TmpDirectory files list to OUT_FILES as output for tar command
+          for log in $TmpDirectory
+          do
+                OUT_FILES="$OUT_FILES $log"
+          done
+    fi
+}
+
 processDumps()
 {
     # wait for app buffers are flushed
@@ -1322,6 +1359,7 @@ processDumps()
 
             mv $f $dumpName
             cp "/"$VERSION_FILE .
+            TMP_DIR_NAME=$dumpName
 
             logMessage "Size of the file: `ls -l $dumpName`"
             if [ "$DUMP_FLAG" == "1" ] ; then
@@ -1329,7 +1367,16 @@ processDumps()
                 if [ $? -eq 0 ]; then
                     logMessage "Success Compressing the files, $tgzFile $dumpName $stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $cefLogFile $wpeLogFile $VERSION_FILE $CORE_LOG "
                 else
-                    logMessage "Compression Failed ."
+                    # If the tar creation failed then will create new tar after copying logs files to /tmp
+	            logfiles="$stbLogFile $ocapLogFile $messagesTxtFile $appStatusLogFile $appLogFile $cefLogFile $wpeLogFile $VERSION_FILE $CORE_LOG"
+                    OUT_FILES="$dumpName"
+                    copy_log_files_tmp_dir $logfiles
+	            nice -n 19 tar -zcvf $tgzFile $OUT_FILES 2>&1 | logStdout
+                    if [ $? -eq 0 ]; then
+                       logMessage "Success Compressing the files, $tgzFile $OUT_FILES"
+                    else
+                       logMessage "Compression Failed ."
+		    fi
                 fi
 
                 if [ -f $tgzFile".txt" ]; then rm $tgzFile".txt"; fi
@@ -1356,7 +1403,7 @@ processDumps()
                 fi
             else
                 if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
-                    files="$tgzFile $dumpName $VERSION_FILE $messagesTxtFile $appStatusLogFile $appLogFile $cefLogFile $CORE_LOG $crashedUrlFile"
+                    files="$VERSION_FILE $messagesTxtFile $appStatusLogFile $appLogFile $cefLogFile $CORE_LOG $crashedUrlFile"
                     if [ "$BUILD_TYPE" != "prod" ]; then
                         test -f $LOG_PATH/receiver.log && files="$files $LOG_PATH/receiver.log*"
                         test -f $LOG_PATH/thread.log && files="$files $LOG_PATH/thread.log"
@@ -1365,11 +1412,19 @@ processDumps()
                         test -f $LOG_PATH/receiver.log.1 && files="$files $LOG_PATH/receiver.log.1"
                     fi
                     add_crashed_log_file $files
-                    nice -n 19 tar -zcvf $files 2>&1 | logStdout
+                    nice -n 19 tar -zcvf $tgzFile $dumpName $files 2>&1 | logStdout
                     if [ $? -eq 0 ]; then
-                        logMessage "Success Compressing the files $files"
+                        logMessage "Success Compressing the files $tgzFile $dumpName $files"
                     else
-                        logMessage "Compression Failed."
+                        # If the tar creation failed then will create new tar after copying logs files to /tmp
+                        OUT_FILES="$dumpName"
+		        copy_log_files_tmp_dir $files
+		        nice -n 19 tar -zcvf $tgzFile $OUT_FILES 2>&1 | logStdout
+                        if [ $? -eq 0 ]; then
+                           logMessage "Success Compressing the files, $tgzFile $OUT_FILES"
+                        else
+                           logMessage "Compression Failed ."
+		        fi
                     fi
                 elif [ "$DEVICE_TYPE" = "broadband" ]; then
                     files="$tgzFile $dumpName $VERSION_FILE $CORE_LOG"
@@ -1385,7 +1440,11 @@ processDumps()
                 fi
             fi
             logMessage "Size of the compressed file: `ls -l $tgzFile`"
-
+	    
+	    if [ ! -z $TMP_DIR_NAME && -d "/tmp/$TMP_DIR_NAME" ]; then
+	       rm -rf /tmp/$TMP_DIR_NAME
+	       logMessage "Temporary Directory Deleted:/tmp/$TMP_DIR_NAME"
+            fi
             rm $dumpName
             if [ "$DEVICE_TYPE" = "hybrid" ] || [ "$DEVICE_TYPE" = "mediaclient" ]; then
                 if [ "$DUMP_FLAG" != "0" ]; then
